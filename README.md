@@ -1,5 +1,12 @@
 # Slang2WebGPU
 
+## Get
+Clone this repo with all its submodules:
+
+  git clone https://github.com/sadsergo/slang2webgpu.git
+  
+  git submodule update --init --recursive
+
 ### Install packages
 
   sudo apt install -y cmake build-essential libxrandr-dev libxinerama-dev
