@@ -161,7 +161,13 @@ void execute_shader()
 
   //  Prepare data
   const size_t N = 1024;
-  std::vector<float> a(N, 1.0f), b(N, 2.0f), result(N, 0);
+  std::vector<float> a(N), b(N), result(N, 0);
+
+  for (int i = 0; i < N; i++)
+  {
+    a[i] = 2;
+    b[i] = i;
+  }
 
   WGPUBufferDescriptor bufDesc = {};
   bufDesc.size = N * sizeof(float);
@@ -241,7 +247,7 @@ void execute_shader()
 
   while (!context.ready) {
     wgpuDevicePoll(device, false, nullptr);
-}
+  }
 
   const float* mapped = static_cast<const float*>(wgpuBufferGetMappedRange(readBuffer, 0, bufDesc.size));
   std::memcpy(result.data(), mapped, bufDesc.size);
