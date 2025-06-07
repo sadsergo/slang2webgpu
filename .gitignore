@@ -1,4 +1,5 @@
 build
 *.wgsl
 slang
+webgpu_native
 .vscode

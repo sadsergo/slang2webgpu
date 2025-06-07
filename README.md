@@ -4,7 +4,6 @@
 Clone this repo with all its submodules:
 
   * git clone https://github.com/sadsergo/slang2webgpu.git
-  * git submodule update --init --recursive
 
 ### Install packages
 
@@ -12,7 +11,8 @@ Clone this repo with all its submodules:
   * sudo apt install -y libxcursor-dev mesa-common-dev libx11-xcb-dev pkg-config nodejs npm
   * sudo apt-get install -y libglfw3 libglfw3-dev
   * install Slang binaries: https://github.com/shader-slang/slang/releases/tag/v2025.10.2
-  * Move Slang binaries into external folder as external/slang/files
+  * install WebGPU Native binaries: https://github.com/gfx-rs/wgpu-native/releases/tag/v25.0.2.1
+  * Move binaries into external folder as external/slang/files
 
 ### Linux
 

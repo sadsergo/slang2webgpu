@@ -1,7 +1,8 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include <glfw3webgpu.h>
+#define GLFW_EXPOSE_NATIVE_X11
+#include <GLFW/glfw3native.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
@@ -28,6 +29,7 @@ public:
   bool IsRunning();
 
 private:
+WGPUSurface createSurface(WGPUInstance instance);
 GLFWwindow* window;
 WGPUDevice device;
 WGPUQueue queue;
