@@ -8,6 +8,13 @@
 
 #include <cassert>
 #include <iostream>
+#include <vector>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define UNUSED(x) (void)(x)
+#define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
 
 namespace WGPU
 {
@@ -26,10 +33,12 @@ public:
   void mainLoop();
 
   //  Return true as long as the main loop should keep on running 
-  bool IsRunning();
+  bool IsRunning() const;
 
 private:
-WGPUSurface createSurface(WGPUInstance instance);
+WGPUTextureView getNextSurfaceViewData();
+
+private:
 GLFWwindow* window;
 WGPUInstance instance;
 WGPUSurface surface;
