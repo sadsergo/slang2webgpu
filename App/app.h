@@ -31,8 +31,11 @@ public:
 private:
 WGPUSurface createSurface(WGPUInstance instance);
 GLFWwindow* window;
+WGPUInstance instance;
+WGPUSurface surface;
+WGPUAdapter adapter;
 WGPUDevice device;
 WGPUQueue queue;
-WGPUSurface surface;
+WGPUSurfaceCapabilities surface_capabilities;
 };
 };

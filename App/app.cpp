@@ -68,7 +68,7 @@ bool Application::Initialize()
   desc.nextInChain = nullptr;
 
   // Create the instance using this descriptor
-  WGPUInstance instance = wgpuCreateInstance(&desc);
+  instance = wgpuCreateInstance(&desc);
 
   if (!instance) {
     std::cerr << "Could not initialize WebGPU!" << std::endl;
@@ -93,10 +93,8 @@ bool Application::Initialize()
 
   surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
 
-  WGPURequestAdapterOptions adapterOpts = {.compatibleSurface = surface};
-  adapterOpts.nextInChain = nullptr;
+  WGPURequestAdapterOptions adapterOpts = {.nextInChain = nullptr, .compatibleSurface = surface};
 
-  WGPUAdapter adapter = NULL;
   wgpuInstanceRequestAdapter(instance, 
     &adapterOpts,
     (const WGPURequestAdapterCallbackInfo) {
@@ -104,7 +102,6 @@ bool Application::Initialize()
       .userdata1 = &adapter
     });
 
-  device = NULL;
   wgpuAdapterRequestDevice(adapter, NULL, (const WGPURequestDeviceCallbackInfo) {
     .callback = handle_request_device,
     .userdata1 = &device
@@ -112,18 +109,26 @@ bool Application::Initialize()
 
   queue = wgpuDeviceGetQueue(device);
 
-  // WGPUSurfaceConfiguration config = {};
-  // config.nextInChain = nullptr;
+  surface_capabilities = {0};
+  wgpuSurfaceGetCapabilities(surface, adapter, &surface_capabilities);
 
+  WGPUSurfaceConfiguration config = {};
 
+  config.device = device;
+  config.usage = WGPUTextureUsage_RenderAttachment;
+  config.format = surface_capabilities.formats[0],
+  config.presentMode = WGPUPresentMode_Fifo;
+  config.nextInChain = nullptr;
+  config.viewFormatCount = 0;
+  config.viewFormats = nullptr;
+  config.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-  // wgpuSurfaceConfigure(surface, &config);
+  int width, height;
+  glfwGetWindowSize(window, &width, &height);
+  config.width = width;
+  config.height = height;
 
-  // surface = glfwGetWGPUSurface(instance, window);
-
-  // WGPUSurfaceConfiguration config = {};
-  // WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(surface, adapter);
-
+  wgpuSurfaceConfigure(surface, &config);
 
   return true;
 }
@@ -140,9 +145,14 @@ void Application::mainLoop()
 
 void Application::Terminate()
 {
+  wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities);
+  wgpuQueueRelease(queue);
+  wgpuDeviceRelease(device);
+  wgpuAdapterRelease(adapter);
   wgpuSurfaceUnconfigure(surface);
   wgpuSurfaceRelease(surface);
   glfwDestroyWindow(window);
+  wgpuInstanceRelease(instance);
   glfwTerminate();
 }
 };
