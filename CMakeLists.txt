@@ -42,7 +42,7 @@ include_directories(external/slang/include)
 
 find_package(glfw3 REQUIRED)
 
-include_directories(App/)
+include_directories(App/ Image/)
 
 add_executable(app main.cpp App/app.cpp)
 
