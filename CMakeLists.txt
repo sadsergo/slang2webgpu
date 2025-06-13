@@ -26,28 +26,42 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # add_link_options(-fsanitize=undefined)
 endif()
 
-# add_subdirectory(external/webgpu)
-# include_directories(external/webgpu/include)
-
-# add_library(wgpu_native SHARED IMPORTED)
-# set_target_properties(wgpu_native PROPERTIES
-#   IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/external/webgpu_native/"
-# )
-
 include_directories(${CMAKE_SOURCE_DIR}/external/webgpu_native/include)
 link_directories(${CMAKE_SOURCE_DIR}/external/webgpu_native/lib)
 
 find_package(slang REQUIRED PATHS external/slang/cmake NO_DEFAULT_PATH)
 include_directories(external/slang/include)
 
-find_package(glfw3 REQUIRED)
-
 include_directories(App/ Image/)
+
+if (WIN32)
+
+if (MSVC)
+add_compile_options(/W4)
+endif()
+
+set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
+
+#   Set GLFW paths
+set(GLFW_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/glfw/include)
+set(GLFW_LIBRARY_DIR ${CMAKE_SOURCE_DIR}/external/glfw/lib-vc2022)
+
+#   Include GlFW headers
+include_directories(${GLFW_INCLUDE_DIR})
+else()
+find_package(glfw3 REQUIRED)
+endif()
 
 add_executable(app main.cpp App/app.cpp)
 
-# WebGPU window application
+if (WIN32)
+target_link_libraries(app PRIVATE ${OS_LIBRARIES} ${GLFW_LIBRARY_DIR}/glfw3.lib ${CMAKE_SOURCE_DIR}/external/webgpu_native/lib/wgpu_native.lib slang::slang)
+else()
 target_link_libraries(app PRIVATE wgpu_native slang::slang glfw)
+endif()
+
+# WebGPU window application
+
 
 # Example with Slang and WebGPU
 # add_executable(slang2webgpu_example examples/example.cpp)

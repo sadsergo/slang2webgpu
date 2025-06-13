@@ -70,6 +70,8 @@ bool Application::Initialize()
     return false;
   }
 
+  #if defined(GLFW_EXPOSE_NATIVE_X11)
+
   Display *x11_display = glfwGetX11Display();
   Window x11_window = glfwGetX11Window(window);
 
@@ -88,19 +90,46 @@ bool Application::Initialize()
 
   surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
 
+  #else
+
+  HWND hwnd = glfwGetWin32Window(window);
+  HINSTANCE hinstance = GetModuleHandle(NULL);
+  
+  const WGPUChainedStruct tmp3 = {
+    .sType = WGPUSType_SurfaceSourceWindowsHWND,
+  };
+
+  const WGPUSurfaceSourceWindowsHWND tmp2 = {
+    .chain = tmp3,
+    .hinstance = hinstance,
+    .hwnd = hwnd,
+  };
+
+  const WGPUSurfaceDescriptor tmp1 = {
+    .nextInChain =
+        (const WGPUChainedStruct *)&tmp2,
+  };
+
+  surface = wgpuInstanceCreateSurface(
+    instance,
+    &tmp1);
+
+  #endif
+
   WGPURequestAdapterOptions adapterOpts = {.nextInChain = nullptr, .compatibleSurface = surface};
 
-  wgpuInstanceRequestAdapter(instance, 
-    &adapterOpts,
-    (const WGPURequestAdapterCallbackInfo) {
-      .callback = handle_request_adapter,
-      .userdata1 = &adapter
-    });
+  const WGPURequestAdapterCallbackInfo adapterCallbackInfo = {
+    .callback = handle_request_adapter,
+    .userdata1 = &adapter
+  };
 
-  wgpuAdapterRequestDevice(adapter, NULL, (const WGPURequestDeviceCallbackInfo) {
+  const WGPURequestDeviceCallbackInfo deviceCallbackInfo = {
     .callback = handle_request_device,
     .userdata1 = &device
-  });
+  };
+
+  wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
+  wgpuAdapterRequestDevice(adapter, NULL, deviceCallbackInfo);
 
   queue = wgpuDeviceGetQueue(device);
 

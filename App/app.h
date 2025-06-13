@@ -1,7 +1,13 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+
+#if defined(UNIX)
 #define GLFW_EXPOSE_NATIVE_X11
+#else
+#define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+
 #include <GLFW/glfw3native.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>

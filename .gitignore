@@ -3,3 +3,4 @@ build
 slang
 webgpu_native
 .vscode
+glfw
