@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <imgui.h>
 
 #define UNUSED(x) (void)(x)
 #define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
@@ -42,7 +43,11 @@ public:
   bool IsRunning() const;
 
 private:
+//  Get next texture view from swapchain
 WGPUTextureView getNextSurfaceViewData();
+
+//  Load buffer data and renderPass to commandBuffer
+void onGui(WGPURenderPassEncoder renderPass);
 
 private:
 GLFWwindow* window;
@@ -52,5 +57,6 @@ WGPUAdapter adapter;
 WGPUDevice device;
 WGPUQueue queue;
 WGPUSurfaceCapabilities surface_capabilities;
+WGPUBuffer frame_buffer;
 };
 };

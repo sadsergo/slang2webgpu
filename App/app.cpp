@@ -90,7 +90,7 @@ bool Application::Initialize()
 
   surface = wgpuInstanceCreateSurface(instance, &surfaceDesc);
 
-  #else
+  #elif defined(GLFW_EXPOSE_NATIVE_WIN32)
 
   HWND hwnd = glfwGetWin32Window(window);
   HINSTANCE hinstance = GetModuleHandle(NULL);
@@ -106,13 +106,10 @@ bool Application::Initialize()
   };
 
   const WGPUSurfaceDescriptor tmp1 = {
-    .nextInChain =
-        (const WGPUChainedStruct *)&tmp2,
+    .nextInChain = (const WGPUChainedStruct *)&tmp2,
   };
 
-  surface = wgpuInstanceCreateSurface(
-    instance,
-    &tmp1);
+  surface = wgpuInstanceCreateSurface(instance, &tmp1);
 
   #endif
 
@@ -194,11 +191,17 @@ WGPUTextureView Application::getNextSurfaceViewData()
   return targetView;
 }
 
+void Application::onGui(WGPURenderPassEncoder renderPass)
+{
+
+}
+
 void Application::mainLoop()
 {
   glfwPollEvents();
 
   WGPUTextureView targetView = getNextSurfaceViewData();
+  
   if (!targetView)
   {
     return;
@@ -219,7 +222,7 @@ void Application::mainLoop()
 	renderPassColorAttachment.resolveTarget = nullptr;
 	renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
 	renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-	renderPassColorAttachment.clearValue = WGPUColor{ 0.9, 0.1, 0.2, 1.0 };
+	renderPassColorAttachment.clearValue = WGPUColor{ 1, 0, 0, 1.0 };
 
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
@@ -230,6 +233,9 @@ void Application::mainLoop()
 
   // Create the render pass and end it immediately (we only clear the screen but do not draw anything)
 	WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
+
+  onGui(renderPass);
+
 	wgpuRenderPassEncoderEnd(renderPass);
 	wgpuRenderPassEncoderRelease(renderPass);
 
