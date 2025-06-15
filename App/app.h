@@ -18,7 +18,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
+#include <backends/imgui_impl_wgpu.h>
+#include <backends/imgui_impl_glfw.h>
 
 #define UNUSED(x) (void)(x)
 #define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
@@ -42,12 +46,20 @@ public:
   //  Return true as long as the main loop should keep on running 
   bool IsRunning() const;
 
+  void image2Texture(const std::string& path);
+
 private:
 //  Get next texture view from swapchain
 WGPUTextureView getNextSurfaceViewData();
 
 //  Load buffer data and renderPass to commandBuffer
 void onGui(WGPURenderPassEncoder renderPass);
+
+// Init ImGui
+void initImGui();
+
+// Terminate ImGui
+void terminateImGui(); 
 
 private:
 GLFWwindow* window;
@@ -57,6 +69,7 @@ WGPUAdapter adapter;
 WGPUDevice device;
 WGPUQueue queue;
 WGPUSurfaceCapabilities surface_capabilities;
-WGPUBuffer frame_buffer;
+WGPUTexture frame_texture;
+WGPUTextureView frame_texture_view;
 };
 };

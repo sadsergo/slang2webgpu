@@ -1,5 +1,11 @@
 #include "app.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
+#include "stb_image.h"
+#include "stb_image_write.h"
+
 namespace WGPU
 {
 void error_callback(int error, const char* description)
@@ -51,7 +57,7 @@ bool Application::Initialize()
   
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // <-- extra info for glfwCreateWindow
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  window = glfwCreateWindow(640, 480, "WebGPU app", nullptr, nullptr);
+  window = glfwCreateWindow(1000, 1000, "WebGPU app", nullptr, nullptr);
 
   if (!window) {
     std::cerr << "Could not open window!" << std::endl;
@@ -137,7 +143,7 @@ bool Application::Initialize()
 
   config.device = device;
   config.usage = WGPUTextureUsage_RenderAttachment;
-  config.format = surface_capabilities.formats[0],
+  config.format = WGPUTextureFormat_RGBA8Unorm,
   config.presentMode = WGPUPresentMode_Fifo;
   config.nextInChain = nullptr;
   config.viewFormatCount = 0;
@@ -151,10 +157,63 @@ bool Application::Initialize()
 
   wgpuSurfaceConfigure(surface, &config);
 
+  initImGui();
+
   //? Release the adapter only after it has been fully utilized
 	//? wgpuAdapterRelease(adapter);
 
   return true;
+}
+
+void Application::image2Texture(const std::string& path)
+{
+  int width = 0, height = 0, channels = 0;
+  uint8_t* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+
+  if (data == nullptr) throw std::runtime_error("Could not load input texture!");
+
+  WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
+
+  //  Create texture
+  WGPUTextureDescriptor textureDesc{};
+  textureDesc.dimension = WGPUTextureDimension_2D;
+  textureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+  textureDesc.size = textureSize;
+  textureDesc.sampleCount = 1;
+  textureDesc.viewFormatCount = 0;
+  textureDesc.viewFormats = nullptr;
+  textureDesc.mipLevelCount = 1;
+  textureDesc.label = WEBGPU_STR("Input");
+  textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+  
+  frame_texture = wgpuDeviceCreateTexture(device, &textureDesc);
+
+  WGPUTexelCopyTextureInfo dest{};
+  dest.texture = frame_texture;
+  dest.origin = {0, 0, 0};
+  dest.aspect = WGPUTextureAspect_All;
+  dest.mipLevel = 0;
+
+  WGPUTexelCopyBufferLayout source{};
+  source.offset = 0;
+  source.bytesPerRow = channels * sizeof(uint8_t) * width;
+  source.rowsPerImage = height;
+
+  wgpuQueueWriteTexture(queue, &dest, data, (size_t)(channels * width * height * sizeof(uint8_t)), &source, &textureSize);
+
+  WGPUTextureViewDescriptor textureViewDesc{};
+  textureViewDesc.aspect = WGPUTextureAspect_All;
+  textureViewDesc.baseArrayLayer = 0;
+  textureViewDesc.arrayLayerCount = 1;
+  textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+  textureViewDesc.format = WGPUTextureFormat_RGBA8Unorm;
+  textureViewDesc.mipLevelCount = 1;
+  textureViewDesc.baseMipLevel = 0;
+  textureViewDesc.label = WEBGPU_STR("Input");
+  
+  frame_texture_view = wgpuTextureCreateView(frame_texture, &textureViewDesc);
+
+  stbi_image_free(data);
 }
 
 bool Application::IsRunning() const
@@ -191,9 +250,44 @@ WGPUTextureView Application::getNextSurfaceViewData()
   return targetView;
 }
 
+void Application::initImGui()
+{
+  // Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+  //  Setup Platform/Renderer backends
+  ImGui_ImplWGPU_InitInfo imGuiRenderInfo{};
+  imGuiRenderInfo.Device = device;
+  imGuiRenderInfo.NumFramesInFlight = 3;
+  imGuiRenderInfo.RenderTargetFormat = WGPUTextureFormat_RGBA8Unorm;
+  imGuiRenderInfo.DepthStencilFormat = WGPUTextureFormat_Undefined;
+
+  ImGui_ImplGlfw_InitForOther(window, true);
+  ImGui_ImplWGPU_Init(&imGuiRenderInfo);
+}
+
+void Application::terminateImGui()
+{
+  ImGui_ImplWGPU_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+}
+
 void Application::onGui(WGPURenderPassEncoder renderPass)
 {
+  ImGui_ImplWGPU_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
 
+  //  Display image
+  {
+    ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {1000, 1000});
+  }
+
+  ImGui::Render();
+	ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
 }
 
 void Application::mainLoop()
@@ -222,7 +316,7 @@ void Application::mainLoop()
 	renderPassColorAttachment.resolveTarget = nullptr;
 	renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
 	renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-	renderPassColorAttachment.clearValue = WGPUColor{ 1, 0, 0, 1.0 };
+	renderPassColorAttachment.clearValue = WGPUColor{ 0, 0, 0, 1.0 };
 
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
@@ -265,6 +359,7 @@ void Application::Terminate()
   wgpuQueueRelease(queue);
   wgpuDeviceRelease(device);
   wgpuAdapterRelease(adapter);
+  terminateImGui();
   glfwDestroyWindow(window);
   wgpuInstanceRelease(instance);
   glfwTerminate();

@@ -22,6 +22,9 @@ int main()
     return 1;
   }
 
+  //  Load image
+  app.image2Texture("data/amogus.png");
+
   while (app.IsRunning())
   {
     app.mainLoop();
