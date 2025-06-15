@@ -4,6 +4,7 @@
 Clone this repo with all its submodules:
 
   * git clone https://github.com/sadsergo/slang2webgpu.git
+  * git submodule update --init --recursive
 
 ### Install packages
 
@@ -14,7 +15,7 @@ Clone this repo with all its submodules:
   * install WebGPU Native binaries: https://github.com/gfx-rs/wgpu-native/releases/tag/v25.0.2.1
   * Move binaries into external folder as external/slang/files
 
-### Linux
+### Linux and Windows
 
   * cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
   * cmake --build build -j16
