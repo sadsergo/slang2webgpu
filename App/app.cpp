@@ -57,7 +57,7 @@ bool Application::Initialize()
   
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // <-- extra info for glfwCreateWindow
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  window = glfwCreateWindow(1000, 1000, "WebGPU app", nullptr, nullptr);
+  window = glfwCreateWindow(512, 512, "WebGPU app", nullptr, nullptr);
 
   if (!window) {
     std::cerr << "Could not open window!" << std::endl;
@@ -283,11 +283,19 @@ void Application::onGui(WGPURenderPassEncoder renderPass)
   //  Display image
   {
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {1000, 1000});
+    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {512, 512});
   }
 
   ImGui::Render();
 	ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+}
+
+bool Application::loadImage(const std::string& path, uint8_t** data, int &width, int &height, int &channels)
+{
+  *data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+  if (data == nullptr) return false;
+
+  return true;
 }
 
 void Application::mainLoop()
@@ -316,7 +324,7 @@ void Application::mainLoop()
 	renderPassColorAttachment.resolveTarget = nullptr;
 	renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
 	renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-	renderPassColorAttachment.clearValue = WGPUColor{ 0, 0, 0, 1.0 };
+	renderPassColorAttachment.clearValue = WGPUColor{ 1, 1, 1, 1.0 };
 
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
