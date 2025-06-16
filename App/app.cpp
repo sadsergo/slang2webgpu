@@ -250,6 +250,14 @@ WGPUTextureView Application::getNextSurfaceViewData()
   return targetView;
 }
 
+void Application::processInput()
+{
+  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+  {
+    glfwSetWindowShouldClose(window, true);
+  }
+}
+
 void Application::initImGui()
 {
   // Setup Dear ImGui context
@@ -301,6 +309,7 @@ bool Application::loadImage(const std::string& path, uint8_t** data, int &width,
 void Application::mainLoop()
 {
   glfwPollEvents();
+  processInput();
 
   WGPUTextureView targetView = getNextSurfaceViewData();
   

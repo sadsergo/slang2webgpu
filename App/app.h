@@ -51,6 +51,9 @@ public:
   //  Load image
   bool loadImage(const std::string& path, uint8_t** data, int &width, int &height, int &channels);
 
+  //  Process every added event
+  void processInput();
+
 private:
 //  Get next texture view from swapchain
 WGPUTextureView getNextSurfaceViewData();
