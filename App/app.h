@@ -27,6 +27,9 @@
 #define UNUSED(x) (void)(x)
 #define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
 
+constexpr size_t APP_WIDTH = 512;
+constexpr size_t APP_HEIGHT = 512;
+
 namespace WGPU
 {
 void error_callback(int error, const char* description);
@@ -34,7 +37,7 @@ void error_callback(int error, const char* description);
 class Application
 {
 public:
-  // Init everything and return true if all went right
+  //  Init everything and return true if all went right
   bool Initialize();
 
   //  Clean all App resources
@@ -51,18 +54,21 @@ public:
   //  Load image
   bool loadImage(const std::string& path, uint8_t** data, int &width, int &height, int &channels);
 
-  //  Process every added event
-  void processInput();
+  //  Process every interacted added event
+  void userInput();
 
 private:
 //  Get next texture view from swapchain
 WGPUTextureView getNextSurfaceViewData();
 
-//  Load buffer data and renderPass to commandBuffer
-void onGui(WGPURenderPassEncoder renderPass);
+//  Copy data from output buffer to frame texture
+void copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder);
 
 // Init ImGui
 void initImGui();
+
+//  Load buffer data and renderPass to commandBuffer
+void onGui(WGPURenderPassEncoder renderPass);
 
 // Terminate ImGui
 void terminateImGui(); 

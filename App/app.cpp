@@ -57,7 +57,7 @@ bool Application::Initialize()
   
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // <-- extra info for glfwCreateWindow
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  window = glfwCreateWindow(512, 512, "WebGPU app", nullptr, nullptr);
+  window = glfwCreateWindow(APP_WIDTH, APP_HEIGHT, "WebGPU app", nullptr, nullptr);
 
   if (!window) {
     std::cerr << "Could not open window!" << std::endl;
@@ -147,10 +147,10 @@ bool Application::Initialize()
   config.viewFormats = nullptr;
   config.alphaMode = WGPUCompositeAlphaMode_Auto;
 
-  int width, height;
-  glfwGetWindowSize(window, &width, &height);
-  config.width = width;
-  config.height = height;
+  // int width, height;
+  // glfwGetWindowSize(window, &width, &height);
+  config.width = APP_WIDTH;
+  config.height = APP_HEIGHT;
 
   wgpuSurfaceConfigure(surface, &config);
 
@@ -247,7 +247,7 @@ WGPUTextureView Application::getNextSurfaceViewData()
   return targetView;
 }
 
-void Application::processInput()
+void Application::userInput()
 {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
   {
@@ -288,7 +288,7 @@ void Application::onGui(WGPURenderPassEncoder renderPass)
   //  Display image
   {
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {512, 512});
+    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {APP_WIDTH, APP_HEIGHT});
   }
 
   ImGui::SetNextWindowSize(ImVec2(350, 50));
@@ -309,27 +309,13 @@ bool Application::loadImage(const std::string& path, uint8_t** data, int &width,
   return true;
 }
 
-void Application::mainLoop()
+void Application::copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder)
 {
-  //  Process all pending events
-  glfwPollEvents();
-  processInput();
-
-  WGPUTextureView targetView = getNextSurfaceViewData();
-  
-  if (!targetView)
-  {
-    return;
-  }
-
-  int width = 0, height = 0;
-  glfwGetWindowSize(window, &width, &height);
-
-  uint32_t bytesPerRowUnpadded = width * 4;
+  uint32_t bytesPerRowUnpadded = APP_WIDTH * 4;
   uint32_t bytesPerRow = bytesPerRowUnpadded;
-  uint32_t bufferSize = bytesPerRow * height;
+  uint32_t bufferSize = bytesPerRow * APP_HEIGHT;
 
-  WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
+  WGPUExtent3D textureSize = {(uint32_t)APP_WIDTH, (uint32_t)APP_HEIGHT, 1};
 
   //  Copy buffer to texture
   WGPUTexelCopyTextureInfo dest{};
@@ -342,15 +328,31 @@ void Application::mainLoop()
   source.buffer = output_buffer;
   source.layout.bytesPerRow = bytesPerRow;
   source.layout.offset = 0;
-  source.layout.rowsPerImage = height;
+  source.layout.rowsPerImage = APP_HEIGHT;
+
+  //  Copy output buffer to texture for further drawing
+  wgpuCommandEncoderCopyBufferToTexture(encoder, &source, &dest, &textureSize);
+}
+
+void Application::mainLoop()
+{
+  //  Process all pending events
+  glfwPollEvents();
+  userInput();
+
+  WGPUTextureView targetView = getNextSurfaceViewData();
+  
+  if (!targetView)
+  {
+    return;
+  }
 
   //  Create a command encoder for the draw call
   WGPUCommandEncoderDescriptor encoderDesc = {};
   encoderDesc.nextInChain = nullptr;
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
 
-  //  Copy output buffer to texture for further drawing
-  wgpuCommandEncoderCopyBufferToTexture(encoder, &source, &dest, &textureSize);
+  copyOutBuffer2FrameTexture(encoder);
 
   // Create the render pass that clears the screen with our color
   WGPURenderPassDescriptor renderPassDesc = {};
