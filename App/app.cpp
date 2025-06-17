@@ -136,15 +136,12 @@ bool Application::Initialize()
 
   queue = wgpuDeviceGetQueue(device);
 
-  surface_capabilities = {0};
-  wgpuSurfaceGetCapabilities(surface, adapter, &surface_capabilities);
-
   WGPUSurfaceConfiguration config = {};
 
   config.device = device;
   config.usage = WGPUTextureUsage_RenderAttachment;
   config.format = WGPUTextureFormat_RGBA8Unorm,
-  config.presentMode = WGPUPresentMode_Fifo;
+  config.presentMode = WGPUPresentMode_Fifo; 
   config.nextInChain = nullptr;
   config.viewFormatCount = 0;
   config.viewFormats = nullptr;
@@ -160,7 +157,7 @@ bool Application::Initialize()
   initImGui();
 
   //? Release the adapter only after it has been fully utilized
-	//? wgpuAdapterRelease(adapter);
+	// ? wgpuAdapterRelease(adapter);
 
   return true;
 }
@@ -325,10 +322,35 @@ void Application::mainLoop()
     return;
   }
 
+  int width = 0, height = 0;
+  glfwGetWindowSize(window, &width, &height);
+
+  uint32_t bytesPerRowUnpadded = width * 4;
+  uint32_t bytesPerRow = bytesPerRowUnpadded;
+  uint32_t bufferSize = bytesPerRow * height;
+
+  WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
+
+  //  Copy buffer to texture
+  WGPUTexelCopyTextureInfo dest{};
+  dest.texture = frame_texture;
+  dest.origin = {0, 0, 0};
+  dest.aspect = WGPUTextureAspect_All;
+  dest.mipLevel = 0;
+
+  WGPUTexelCopyBufferInfo source{};
+  source.buffer = output_buffer;
+  source.layout.bytesPerRow = bytesPerRow;
+  source.layout.offset = 0;
+  source.layout.rowsPerImage = height;
+
   //  Create a command encoder for the draw call
   WGPUCommandEncoderDescriptor encoderDesc = {};
   encoderDesc.nextInChain = nullptr;
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+
+  //  Copy output buffer to texture for further drawing
+  wgpuCommandEncoderCopyBufferToTexture(encoder, &source, &dest, &textureSize);
 
   // Create the render pass that clears the screen with our color
   WGPURenderPassDescriptor renderPassDesc = {};
@@ -375,15 +397,17 @@ void Application::mainLoop()
 
 void Application::Terminate()
 {
-  wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities);
   wgpuSurfaceUnconfigure(surface);
   wgpuSurfaceRelease(surface);
+  
   wgpuQueueRelease(queue);
   wgpuDeviceRelease(device);
-  wgpuAdapterRelease(adapter);
+  
   terminateImGui();
+  
   glfwDestroyWindow(window);
   wgpuInstanceRelease(instance);
+  
   glfwTerminate();
 }
 };

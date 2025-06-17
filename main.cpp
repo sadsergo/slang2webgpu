@@ -47,8 +47,8 @@ int main()
   textureBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
   textureBufferDesc.label = WEBGPU_STR("frame texture buffer");
 
-  WGPUBuffer textureBuffer = wgpuDeviceCreateBuffer(app.device, &textureBufferDesc);
-  wgpuQueueWriteBuffer(app.queue, textureBuffer, 0, aligned_data.data(), textureBufferDesc.size);
+  app.output_buffer = wgpuDeviceCreateBuffer(app.device, &textureBufferDesc);
+  wgpuQueueWriteBuffer(app.queue, app.output_buffer, 0, aligned_data.data(), textureBufferDesc.size);
 
   //  Create texture
   WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
@@ -77,34 +77,6 @@ int main()
   textureViewDesc.label = WEBGPU_STR("Input");
   
   app.frame_texture_view = wgpuTextureCreateView(app.frame_texture, &textureViewDesc);
-
-  //  Copy buffer to texture
-  WGPUTexelCopyTextureInfo dest{};
-  dest.texture = app.frame_texture;
-  dest.origin = {0, 0, 0};
-  dest.aspect = WGPUTextureAspect_All;
-  dest.mipLevel = 0;
-
-  WGPUTexelCopyBufferInfo source{};
-  source.buffer = textureBuffer;
-  source.layout.bytesPerRow = bytesPerRow;
-  source.layout.offset = 0;
-  source.layout.rowsPerImage = height;
-
-  WGPUCommandEncoderDescriptor encoderDesc = {};
-  encoderDesc.nextInChain = nullptr;
-  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(app.device, &encoderDesc);
-
-  wgpuCommandEncoderCopyBufferToTexture(encoder, &source, &dest, &textureSize);
-
-  WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
-	cmdBufferDescriptor.nextInChain = nullptr;
-  WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
-  wgpuCommandEncoderRelease(encoder);
-  
-  wgpuQueueSubmit(app.queue, 1, &commandBuffer);
-
-  wgpuCommandBufferRelease(commandBuffer);
 
   while (app.IsRunning())
   {
