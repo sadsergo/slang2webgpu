@@ -294,6 +294,12 @@ void Application::onGui(WGPURenderPassEncoder renderPass)
     drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {512, 512});
   }
 
+  ImGui::SetNextWindowSize(ImVec2(350, 50));
+  ImGui::Begin("Performance");
+  ImGuiIO& io = ImGui::GetIO();
+  ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.f / io.Framerate, io.Framerate);
+  ImGui::End();
+
   ImGui::Render();
 	ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
 }
@@ -308,6 +314,7 @@ bool Application::loadImage(const std::string& path, uint8_t** data, int &width,
 
 void Application::mainLoop()
 {
+  //  Process all pending events
   glfwPollEvents();
   processInput();
 
@@ -333,7 +340,7 @@ void Application::mainLoop()
 	renderPassColorAttachment.resolveTarget = nullptr;
 	renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
 	renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
-	renderPassColorAttachment.clearValue = WGPUColor{ 1, 1, 1, 1.0 };
+	renderPassColorAttachment.clearValue = WGPUColor{ 1.0, 1.0, 1.0, 1.0 };
 
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
@@ -356,10 +363,8 @@ void Application::mainLoop()
 	WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
 	wgpuCommandEncoderRelease(encoder);
 
-  std::cout << "Submitting command..." << std::endl;
 	wgpuQueueSubmit(queue, 1, &command);
 	wgpuCommandBufferRelease(command);
-	std::cout << "Command submitted." << std::endl;
 
 	// At the end of the frame
 	wgpuTextureViewRelease(targetView);

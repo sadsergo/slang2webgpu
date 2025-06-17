@@ -79,7 +79,6 @@ int main()
   app.frame_texture_view = wgpuTextureCreateView(app.frame_texture, &textureViewDesc);
 
   //  Copy buffer to texture
-
   WGPUTexelCopyTextureInfo dest{};
   dest.texture = app.frame_texture;
   dest.origin = {0, 0, 0};
