@@ -4,7 +4,7 @@ project(app LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
+add_compile_definitions(NOMINMAX)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     # Enable debug symbols, minimal optimization, AddressSanitizer, and strong warnings
@@ -34,6 +34,17 @@ link_directories(${CMAKE_SOURCE_DIR}/external/webgpu_native/lib)
 find_package(slang REQUIRED PATHS external/slang/cmake NO_DEFAULT_PATH)
 include_directories(external/slang/include)
 
+# include_directories(${CMAKE_SOURCE_DIR}/external/LiteMath/external)
+include_directories(${CMAKE_SOURCE_DIR}/external/LiteMath)
+
+set(CPP_FILES
+    main.cpp 
+    App/app.cpp
+    Render/render.cpp
+    Mesh/mesh.cpp
+    external/LiteMath/Image2d.cpp
+)
+
 set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/imgui")
 set(IMGUI_SOURCES 
     ${IMGUI_DIR}/imgui.cpp
@@ -49,7 +60,7 @@ add_library(ImGui STATIC ${IMGUI_SOURCES})
 target_include_directories(ImGui PUBLIC ${IMGUI_DIR})
 target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 
-include_directories(App/ Image/)
+include_directories(App/ Image/ Render/ Mesh/)
 
 if (WIN32)
     if (MSVC)
@@ -68,7 +79,7 @@ else()
     find_package(glfw3 REQUIRED)
 endif()
 
-add_executable(app main.cpp App/app.cpp)
+add_executable(app ${CPP_FILES})
 
 if (WIN32)
 target_link_libraries(app PRIVATE ${OS_LIBRARIES} ${GLFW_LIBRARY_DIR}/glfw3.lib ${CMAKE_SOURCE_DIR}/external/webgpu_native/lib/wgpu_native.lib slang::slang ImGui)

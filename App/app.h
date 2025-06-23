@@ -18,11 +18,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <backends/imgui_impl_wgpu.h>
 #include <backends/imgui_impl_glfw.h>
+
+#include "render.h"
 
 #define UNUSED(x) (void)(x)
 #define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
@@ -57,7 +60,13 @@ public:
   //  Process every interacted added event
   void userInput();
 
+  //  Init render API
+  void initRenderAPI();
+
 private:
+//  Init frame buffer, texture and its view
+void initFrameBuffers();
+
 //  Get next texture view from swapchain
 WGPUTextureView getNextSurfaceViewData();
 
@@ -70,8 +79,11 @@ void initImGui();
 //  Load buffer data and renderPass to commandBuffer
 void onGui(WGPURenderPassEncoder renderPass);
 
-// Terminate ImGui
+//  Terminate ImGui
 void terminateImGui(); 
+
+//  Terminate buffers
+void terminateBuffers();
 
 // private:
 public:
@@ -79,10 +91,12 @@ GLFWwindow* window;
 WGPUInstance instance;
 WGPUSurface surface;
 WGPUAdapter adapter;
-WGPUDevice device;
-WGPUQueue queue;
-WGPUTexture frame_texture;
-WGPUTextureView frame_texture_view;
+std::shared_ptr<WGPUDevice> device;
+std::shared_ptr<WGPUQueue> queue;
+std::shared_ptr<WGPUTexture> frame_texture;
+std::shared_ptr<WGPUTextureView> frame_texture_view;
 WGPUBuffer output_buffer;
+
+RenderAPI* render_api;
 };
 };

@@ -126,19 +126,21 @@ bool Application::Initialize()
     .userdata1 = &adapter
   };
 
+  device = std::make_shared<WGPUDevice>();
+
   const WGPURequestDeviceCallbackInfo deviceCallbackInfo = {
     .callback = handle_request_device,
-    .userdata1 = &device
+    .userdata1 = device.get()
   };
 
   wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
   wgpuAdapterRequestDevice(adapter, NULL, deviceCallbackInfo);
 
-  queue = wgpuDeviceGetQueue(device);
+  queue = std::make_shared<WGPUQueue>(wgpuDeviceGetQueue(*device));
 
   WGPUSurfaceConfiguration config = {};
 
-  config.device = device;
+  config.device = *device;
   config.usage = WGPUTextureUsage_RenderAttachment;
   config.format = WGPUTextureFormat_RGBA8Unorm,
   config.presentMode = WGPUPresentMode_Fifo; 
@@ -155,11 +157,17 @@ bool Application::Initialize()
   wgpuSurfaceConfigure(surface, &config);
 
   initImGui();
+  initFrameBuffers();
 
-  //? Release the adapter only after it has been fully utilized
-	// ? wgpuAdapterRelease(adapter);
+  // Release the adapter only after it has been fully utilized
+	wgpuAdapterRelease(adapter);
 
   return true;
+}
+
+void Application::initFrameBuffers()
+{
+  
 }
 
 void Application::image2Texture(const std::string& path)
@@ -183,10 +191,10 @@ void Application::image2Texture(const std::string& path)
   textureDesc.label = WEBGPU_STR("Input");
   textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
   
-  frame_texture = wgpuDeviceCreateTexture(device, &textureDesc);
+  frame_texture = std::make_shared<WGPUTexture>(wgpuDeviceCreateTexture(*device, &textureDesc));
 
   WGPUTexelCopyTextureInfo dest{};
-  dest.texture = frame_texture;
+  dest.texture = *frame_texture;
   dest.origin = {0, 0, 0};
   dest.aspect = WGPUTextureAspect_All;
   dest.mipLevel = 0;
@@ -196,7 +204,7 @@ void Application::image2Texture(const std::string& path)
   source.bytesPerRow = channels * sizeof(uint8_t) * width;
   source.rowsPerImage = height;
 
-  wgpuQueueWriteTexture(queue, &dest, data, (size_t)(channels * width * height * sizeof(uint8_t)), &source, &textureSize);
+  wgpuQueueWriteTexture(*queue, &dest, data, (size_t)(channels * width * height * sizeof(uint8_t)), &source, &textureSize);
 
   WGPUTextureViewDescriptor textureViewDesc{};
   textureViewDesc.aspect = WGPUTextureAspect_All;
@@ -208,7 +216,7 @@ void Application::image2Texture(const std::string& path)
   textureViewDesc.baseMipLevel = 0;
   textureViewDesc.label = WEBGPU_STR("Input");
   
-  frame_texture_view = wgpuTextureCreateView(frame_texture, &textureViewDesc);
+  frame_texture_view = std::make_shared<WGPUTextureView>(wgpuTextureCreateView(*frame_texture, &textureViewDesc));
 
   stbi_image_free(data);
 }
@@ -242,8 +250,6 @@ WGPUTextureView Application::getNextSurfaceViewData()
 	viewDescriptor.aspect = WGPUTextureAspect_All;
 	WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
 
-  // wgpuTextureRelease(surfaceTexture.texture);
-
   return targetView;
 }
 
@@ -264,7 +270,7 @@ void Application::initImGui()
 
   //  Setup Platform/Renderer backends
   ImGui_ImplWGPU_InitInfo imGuiRenderInfo{};
-  imGuiRenderInfo.Device = device;
+  imGuiRenderInfo.Device = *device;
   imGuiRenderInfo.NumFramesInFlight = 3;
   imGuiRenderInfo.RenderTargetFormat = WGPUTextureFormat_RGBA8Unorm;
   imGuiRenderInfo.DepthStencilFormat = WGPUTextureFormat_Undefined;
@@ -288,7 +294,7 @@ void Application::onGui(WGPURenderPassEncoder renderPass)
   //  Display image
   {
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-    drawList->AddImage((ImTextureID)frame_texture_view, {0, 0}, {APP_WIDTH, APP_HEIGHT});
+    drawList->AddImage((ImTextureID)(*frame_texture_view), {0, 0}, {APP_WIDTH, APP_HEIGHT});
   }
 
   ImGui::SetNextWindowSize(ImVec2(350, 50));
@@ -319,7 +325,7 @@ void Application::copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder)
 
   //  Copy buffer to texture
   WGPUTexelCopyTextureInfo dest{};
-  dest.texture = frame_texture;
+  dest.texture = *frame_texture;
   dest.origin = {0, 0, 0};
   dest.aspect = WGPUTextureAspect_All;
   dest.mipLevel = 0;
@@ -350,7 +356,7 @@ void Application::mainLoop()
   //  Create a command encoder for the draw call
   WGPUCommandEncoderDescriptor encoderDesc = {};
   encoderDesc.nextInChain = nullptr;
-  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+  WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(*device, &encoderDesc);
 
   copyOutBuffer2FrameTexture(encoder);
 
@@ -387,23 +393,32 @@ void Application::mainLoop()
 	WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmdBufferDescriptor);
 	wgpuCommandEncoderRelease(encoder);
 
-	wgpuQueueSubmit(queue, 1, &command);
+	wgpuQueueSubmit(*queue, 1, &command);
 	wgpuCommandBufferRelease(command);
 
 	// At the end of the frame
 	wgpuTextureViewRelease(targetView);
 
   wgpuSurfacePresent(surface);
-  wgpuDevicePoll(device, false, nullptr);
+  wgpuDevicePoll(*device, false, nullptr);
+}
+
+void Application::terminateBuffers()
+{
+  wgpuBufferRelease(output_buffer);
+  wgpuTextureViewRelease(*frame_texture_view);
+  wgpuTextureRelease(*frame_texture);
 }
 
 void Application::Terminate()
 {
+  terminateBuffers();
+  
   wgpuSurfaceUnconfigure(surface);
   wgpuSurfaceRelease(surface);
   
-  wgpuQueueRelease(queue);
-  wgpuDeviceRelease(device);
+  wgpuQueueRelease(*queue);
+  wgpuDeviceRelease(*device);
   
   terminateImGui();
   

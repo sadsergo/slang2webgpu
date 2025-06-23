@@ -28,18 +28,15 @@ int main()
   uint8_t* data = nullptr;
   int width = 0, height = 0, channels = 0;
 
-  app.loadImage("data/example.png", &data, width, height, channels);
+  if (app.loadImage("data/example.png", &data, width, height, channels) == false)
+  {
+    std::cout << "Coud not load image\n";
+    return 1;
+  }
 
   uint32_t bytesPerRowUnpadded = width * 4;
   uint32_t bytesPerRow = bytesPerRowUnpadded;
   uint32_t bufferSize = bytesPerRow * height;
-
-  std::vector<uint8_t> aligned_data(bufferSize, 0);
-
-  for (int i = 0; i < height; i++)
-  {
-    memcpy(aligned_data.data() + i * bytesPerRow, data + i * bytesPerRowUnpadded, bytesPerRowUnpadded);
-  }
 
   //  Create buffer
   WGPUBufferDescriptor textureBufferDesc{};
@@ -47,8 +44,8 @@ int main()
   textureBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
   textureBufferDesc.label = WEBGPU_STR("frame texture buffer");
 
-  app.output_buffer = wgpuDeviceCreateBuffer(app.device, &textureBufferDesc);
-  wgpuQueueWriteBuffer(app.queue, app.output_buffer, 0, aligned_data.data(), textureBufferDesc.size);
+  app.output_buffer = wgpuDeviceCreateBuffer(*app.device, &textureBufferDesc);
+  wgpuQueueWriteBuffer(*app.queue.get(), app.output_buffer, 0, data, textureBufferDesc.size);
 
   //  Create texture
   WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
@@ -64,9 +61,9 @@ int main()
   textureDesc.label = WEBGPU_STR("Input");
   textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
 
-  app.frame_texture = wgpuDeviceCreateTexture(app.device, &textureDesc);
+  app.frame_texture = std::make_shared<WGPUTexture>(wgpuDeviceCreateTexture(*app.device, &textureDesc));
 
-  WGPUTextureViewDescriptor textureViewDesc{};
+  WGPUTextureViewDescriptor textureViewDesc {};
   textureViewDesc.aspect = WGPUTextureAspect_All;
   textureViewDesc.baseArrayLayer = 0;
   textureViewDesc.arrayLayerCount = 1;
@@ -76,7 +73,7 @@ int main()
   textureViewDesc.baseMipLevel = 0;
   textureViewDesc.label = WEBGPU_STR("Input");
   
-  app.frame_texture_view = wgpuTextureCreateView(app.frame_texture, &textureViewDesc);
+  app.frame_texture_view = std::make_shared<WGPUTextureView>(wgpuTextureCreateView(*app.frame_texture, &textureViewDesc));
 
   while (app.IsRunning())
   {
