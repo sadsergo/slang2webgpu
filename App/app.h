@@ -27,9 +27,6 @@
 
 #include "render.h"
 
-#define UNUSED(x) (void)(x)
-#define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
-
 constexpr size_t APP_WIDTH = 512;
 constexpr size_t APP_HEIGHT = 512;
 
@@ -97,6 +94,6 @@ std::shared_ptr<WGPUTexture> frame_texture;
 std::shared_ptr<WGPUTextureView> frame_texture_view;
 WGPUBuffer output_buffer;
 
-RenderAPI* render_api;
+std::shared_ptr<RenderAPI> render_api;
 };
 };

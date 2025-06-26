@@ -6,6 +6,9 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#define UNUSED(x) (void)(x)
+#define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
+
 namespace WGPU
 {
 void error_callback(int error, const char* description)
@@ -167,7 +170,48 @@ bool Application::Initialize()
 
 void Application::initFrameBuffers()
 {
+  int width, height;
+  glfwGetWindowSize(window, &width, &height);
+
+  uint32_t bytesPerRowUnpadded = width * 4;
+  uint32_t bytesPerRow = bytesPerRowUnpadded;
+  uint32_t bufferSize = bytesPerRow * height;
+
+  //  Create buffer
+  WGPUBufferDescriptor textureBufferDesc{};
+  textureBufferDesc.size = bufferSize;
+  textureBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
+  textureBufferDesc.label = WEBGPU_STR("frame texture buffer");
+
+  output_buffer = wgpuDeviceCreateBuffer(*device, &textureBufferDesc);
   
+  //  Create texture
+  WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
+
+  WGPUTextureDescriptor textureDesc{};
+  textureDesc.dimension = WGPUTextureDimension_2D;
+  textureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+  textureDesc.size = textureSize;
+  textureDesc.sampleCount = 1;
+  textureDesc.viewFormatCount = 0;
+  textureDesc.viewFormats = nullptr;
+  textureDesc.mipLevelCount = 1;
+  textureDesc.label = WEBGPU_STR("Input");
+  textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+  frame_texture = std::make_shared<WGPUTexture>(wgpuDeviceCreateTexture(*device, &textureDesc));
+
+  WGPUTextureViewDescriptor textureViewDesc {};
+  textureViewDesc.aspect = WGPUTextureAspect_All;
+  textureViewDesc.baseArrayLayer = 0;
+  textureViewDesc.arrayLayerCount = 1;
+  textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+  textureViewDesc.format = WGPUTextureFormat_RGBA8Unorm;
+  textureViewDesc.mipLevelCount = 1;
+  textureViewDesc.baseMipLevel = 0;
+  textureViewDesc.label = WEBGPU_STR("Input");
+  
+  frame_texture_view = std::make_shared<WGPUTextureView>(wgpuTextureCreateView(*frame_texture, &textureViewDesc));
 }
 
 void Application::image2Texture(const std::string& path)
@@ -412,6 +456,8 @@ void Application::terminateBuffers()
 
 void Application::Terminate()
 {
+  render_api->Terminate();
+
   terminateBuffers();
   
   wgpuSurfaceUnconfigure(surface);
