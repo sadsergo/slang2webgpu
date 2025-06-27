@@ -35,13 +35,13 @@ int main()
   }
 
   app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(width, height);
-  app.render_api->Init(app.device, app.queue);
+  app.render_api->Init(app.device, app.queue, app.output_buffer);
 
   uint32_t bytesPerRowUnpadded = width * 4;
   uint32_t bytesPerRow = bytesPerRowUnpadded;
   uint32_t bufferSize = bytesPerRow * height;
 
-  wgpuQueueWriteBuffer(*app.queue, app.output_buffer, 0, data, bufferSize);
+  wgpuQueueWriteBuffer(*app.queue, *app.output_buffer, 0, data, bufferSize);
 
   while (app.IsRunning())
   {

@@ -183,7 +183,7 @@ void Application::initFrameBuffers()
   textureBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
   textureBufferDesc.label = WEBGPU_STR("frame texture buffer");
 
-  output_buffer = wgpuDeviceCreateBuffer(*device, &textureBufferDesc);
+  output_buffer = std::make_shared<WGPUBuffer>(wgpuDeviceCreateBuffer(*device, &textureBufferDesc));
   
   //  Create texture
   WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
@@ -199,7 +199,7 @@ void Application::initFrameBuffers()
   textureDesc.label = WEBGPU_STR("Input");
   textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
 
-  frame_texture = std::make_shared<WGPUTexture>(wgpuDeviceCreateTexture(*device, &textureDesc));
+  frame_texture = wgpuDeviceCreateTexture(*device, &textureDesc);
 
   WGPUTextureViewDescriptor textureViewDesc {};
   textureViewDesc.aspect = WGPUTextureAspect_All;
@@ -211,7 +211,7 @@ void Application::initFrameBuffers()
   textureViewDesc.baseMipLevel = 0;
   textureViewDesc.label = WEBGPU_STR("Input");
   
-  frame_texture_view = std::make_shared<WGPUTextureView>(wgpuTextureCreateView(*frame_texture, &textureViewDesc));
+  frame_texture_view = wgpuTextureCreateView(frame_texture, &textureViewDesc);
 }
 
 void Application::image2Texture(const std::string& path)
@@ -235,10 +235,10 @@ void Application::image2Texture(const std::string& path)
   textureDesc.label = WEBGPU_STR("Input");
   textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
   
-  frame_texture = std::make_shared<WGPUTexture>(wgpuDeviceCreateTexture(*device, &textureDesc));
+  frame_texture = wgpuDeviceCreateTexture(*device, &textureDesc);
 
   WGPUTexelCopyTextureInfo dest{};
-  dest.texture = *frame_texture;
+  dest.texture = frame_texture;
   dest.origin = {0, 0, 0};
   dest.aspect = WGPUTextureAspect_All;
   dest.mipLevel = 0;
@@ -260,7 +260,7 @@ void Application::image2Texture(const std::string& path)
   textureViewDesc.baseMipLevel = 0;
   textureViewDesc.label = WEBGPU_STR("Input");
   
-  frame_texture_view = std::make_shared<WGPUTextureView>(wgpuTextureCreateView(*frame_texture, &textureViewDesc));
+  frame_texture_view = wgpuTextureCreateView(frame_texture, &textureViewDesc);
 
   stbi_image_free(data);
 }
@@ -338,7 +338,7 @@ void Application::onGui(WGPURenderPassEncoder renderPass)
   //  Display image
   {
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-    drawList->AddImage((ImTextureID)(*frame_texture_view), {0, 0}, {APP_WIDTH, APP_HEIGHT});
+    drawList->AddImage((ImTextureID)(frame_texture_view), {0, 0}, {APP_WIDTH, APP_HEIGHT});
   }
 
   ImGui::SetNextWindowSize(ImVec2(350, 50));
@@ -369,13 +369,13 @@ void Application::copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder)
 
   //  Copy buffer to texture
   WGPUTexelCopyTextureInfo dest{};
-  dest.texture = *frame_texture;
+  dest.texture = frame_texture;
   dest.origin = {0, 0, 0};
   dest.aspect = WGPUTextureAspect_All;
   dest.mipLevel = 0;
 
   WGPUTexelCopyBufferInfo source{};
-  source.buffer = output_buffer;
+  source.buffer = *output_buffer;
   source.layout.bytesPerRow = bytesPerRow;
   source.layout.offset = 0;
   source.layout.rowsPerImage = APP_HEIGHT;
@@ -402,6 +402,8 @@ void Application::mainLoop()
   encoderDesc.nextInChain = nullptr;
   WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(*device, &encoderDesc);
 
+  render_api->Draw();
+  
   copyOutBuffer2FrameTexture(encoder);
 
   // Create the render pass that clears the screen with our color
@@ -415,7 +417,6 @@ void Application::mainLoop()
 	renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
 	renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
 	renderPassColorAttachment.clearValue = WGPUColor{ 1.0, 1.0, 1.0, 1.0 };
-
   renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
   renderPassDesc.colorAttachmentCount = 1;
@@ -449,9 +450,9 @@ void Application::mainLoop()
 
 void Application::terminateBuffers()
 {
-  wgpuBufferRelease(output_buffer);
-  wgpuTextureViewRelease(*frame_texture_view);
-  wgpuTextureRelease(*frame_texture);
+  wgpuBufferRelease(*output_buffer);
+  wgpuTextureViewRelease(frame_texture_view);
+  wgpuTextureRelease(frame_texture);
 }
 
 void Application::Terminate()

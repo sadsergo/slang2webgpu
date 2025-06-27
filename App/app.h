@@ -90,9 +90,9 @@ WGPUSurface surface;
 WGPUAdapter adapter;
 std::shared_ptr<WGPUDevice> device;
 std::shared_ptr<WGPUQueue> queue;
-std::shared_ptr<WGPUTexture> frame_texture;
-std::shared_ptr<WGPUTextureView> frame_texture_view;
-WGPUBuffer output_buffer;
+WGPUTexture frame_texture;
+WGPUTextureView frame_texture_view;
+std::shared_ptr<WGPUBuffer> output_buffer;
 
 std::shared_ptr<RenderAPI> render_api;
 };
