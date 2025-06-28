@@ -2,7 +2,7 @@
 #include <iostream>
 
 #define UNUSED(x) (void)(x)
-#define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
+
 namespace WGPU
 {
   std::string readFile(const char* path) {
@@ -84,7 +84,7 @@ namespace WGPU
     textureDesc.viewFormatCount = 0;
     textureDesc.viewFormats = nullptr;
     textureDesc.mipLevelCount = 1;
-    textureDesc.label = WEBGPU_STR("Rasterization texture");
+    textureDesc.label = {"Rasterization texture", WGPU_STRLEN};
     textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
 
     frame_texture = wgpuDeviceCreateTexture(*device, &textureDesc);
@@ -97,7 +97,7 @@ namespace WGPU
     textureViewDesc.format = WGPUTextureFormat_RGBA8Unorm;
     textureViewDesc.mipLevelCount = 1;
     textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.label = WEBGPU_STR("Rasterization texture view");
+    textureViewDesc.label = {"Rasterization texture view", WGPU_STRLEN};
     
     frame_texture_view = wgpuTextureCreateView(frame_texture, &textureViewDesc);
     
@@ -113,29 +113,29 @@ namespace WGPU
 
     const WGPUShaderModuleDescriptor tmp3 = {
       .nextInChain = (const WGPUChainedStruct *)&tmp2,
-      .label = WEBGPU_STR("Rasterization shader module")
+      .label = {"Rasterization shader module", WGPU_STRLEN}
     };
 
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(*this->device, &tmp3);
 
     WGPUPipelineLayoutDescriptor pipelineLayoutDesc{};
-    pipelineLayoutDesc.label = WEBGPU_STR("Rasterization pipeline layout");
+    pipelineLayoutDesc.label = {"Rasterization pipeline layout", WGPU_STRLEN};
 
     WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(*device, &pipelineLayoutDesc);
 
-    WGPUVertexState vertex_state = { .module = shader_module, .entryPoint = WEBGPU_STR("vs_main") };
+    WGPUVertexState vertex_state = { .module = shader_module, .entryPoint = {"vs_main", WGPU_STRLEN} };
     const WGPUColorTargetState tmp4 = {
       .format = WGPUTextureFormat_RGBA8Unorm,
       .writeMask = WGPUColorWriteMask_All,
     };
     const WGPUColorTargetState targets[] = { tmp4 };
-    const WGPUFragmentState fragment_state = { .module = shader_module, .entryPoint = WEBGPU_STR("fs_main"), .targetCount = 1, .targets = targets };
+    const WGPUFragmentState fragment_state = { .module = shader_module, .entryPoint = {"fs_main", WGPU_STRLEN}, .targetCount = 1, .targets = targets };
 
     const WGPUPrimitiveState prim_state = { .topology = WGPUPrimitiveTopology_TriangleList };
     const WGPUMultisampleState multisample_state = { .count = 1, .mask = 0xFFFFFFFF };
 
     WGPURenderPipelineDescriptor renderPipelineDesc{};
-    renderPipelineDesc.label = WEBGPU_STR("rasterization pipeline");
+    renderPipelineDesc.label = {"Rasterization pipeline", WGPU_STRLEN};
     renderPipelineDesc.layout = pipeline_layout;
     renderPipelineDesc.vertex = vertex_state;
     renderPipelineDesc.fragment = &fragment_state;
@@ -152,4 +152,10 @@ namespace WGPU
     wgpuTextureViewRelease(frame_texture_view);
     wgpuTextureRelease(frame_texture);
   }
+
+  // void RasterizationRenderAPI::SetScene(const std::vector<SimpleMesh>& meshes)
+  // {
+  //   this->meshes.resize(meshes.size());
+  //   std::copy(meshes.begin(), meshes.end(), this->meshes.begin());
+  // }
 };

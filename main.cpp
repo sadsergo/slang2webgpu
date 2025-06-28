@@ -22,26 +22,10 @@ int main()
     return 1;
   }
 
-  //  Load image
-  // app.image2Texture("data/example.png");
+  app.loadScene("c:/Users/nikit/Desktop/meshes/bulldozer.obj");
 
-  uint8_t* data = nullptr;
-  int width = 0, height = 0, channels = 0;
-
-  if (app.loadImage("data/example.png", &data, width, height, channels) == false)
-  {
-    std::cout << "Coud not load image\n";
-    return 1;
-  }
-
-  app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(width, height);
+  app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(APP_WIDTH, APP_HEIGHT);
   app.render_api->Init(app.device, app.queue, app.output_buffer);
-
-  uint32_t bytesPerRowUnpadded = width * 4;
-  uint32_t bytesPerRow = bytesPerRowUnpadded;
-  uint32_t bufferSize = bytesPerRow * height;
-
-  wgpuQueueWriteBuffer(*app.queue, *app.output_buffer, 0, data, bufferSize);
 
   while (app.IsRunning())
   {

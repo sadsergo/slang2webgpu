@@ -4,3 +4,4 @@ slang
 webgpu_native
 .vscode
 glfw
+*.ini

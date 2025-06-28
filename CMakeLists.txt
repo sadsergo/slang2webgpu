@@ -41,7 +41,6 @@ set(CPP_FILES
     main.cpp 
     App/app.cpp
     Render/render.cpp
-    Mesh/mesh.cpp
     external/LiteMath/Image2d.cpp
 )
 
@@ -60,7 +59,7 @@ add_library(ImGui STATIC ${IMGUI_SOURCES})
 target_include_directories(ImGui PUBLIC ${IMGUI_DIR})
 target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 
-include_directories(App/ Image/ Render/ Mesh/)
+include_directories(App/ Image/ Render/)
 
 if (WIN32)
     if (MSVC)

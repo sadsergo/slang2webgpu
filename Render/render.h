@@ -37,6 +37,7 @@ public:
   
   void Draw() const override;
   void Init(std::shared_ptr<WGPUDevice> device, std::shared_ptr<WGPUQueue> queue, std::shared_ptr<WGPUBuffer> output_buffer) override;
+  // void SetScene(const std::vector<SimpleMesh>& meshes);
   void Terminate() override;
 public:
 
@@ -45,6 +46,8 @@ private:
   std::shared_ptr<WGPUBuffer> output_buffer;
   WGPUTexture frame_texture;
   WGPUTextureView frame_texture_view;
+
+  // std::vector<SimpleMesh> meshes;
 };
 
 };

@@ -27,8 +27,8 @@
 
 #include "render.h"
 
-constexpr size_t APP_WIDTH = 512;
-constexpr size_t APP_HEIGHT = 512;
+constexpr uint32_t APP_WIDTH = 1024;
+constexpr uint32_t APP_HEIGHT = 1024;
 
 namespace WGPU
 {
@@ -53,6 +53,15 @@ public:
 
   //  Load image
   bool loadImage(const std::string& path, uint8_t** data, int &width, int &height, int &channels);
+
+  //  Load scene
+  void loadScene(const std::string& path);
+
+  //  Create vertex buffer
+  void createVertexBuffer();
+
+  //  Create index buffer
+  void createIndexBuffer();
 
   //  Process every interacted added event
   void userInput();
@@ -95,5 +104,6 @@ WGPUTextureView frame_texture_view;
 std::shared_ptr<WGPUBuffer> output_buffer;
 
 std::shared_ptr<RenderAPI> render_api;
+// std::vector<SimpleMesh> meshes;
 };
 };
