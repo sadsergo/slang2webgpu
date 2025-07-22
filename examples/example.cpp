@@ -22,59 +22,44 @@ struct UserData {
     bool requestEnded = false;
 };
 
-void onAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* pUserData) {
-    UserData* userData = reinterpret_cast<UserData*>(pUserData);
-    if (status == WGPURequestAdapterStatus_Success) {
-        userData->adapter = adapter;
-    } else {
-        std::cout << "Could not get WebGPU adapter: " << message << std::endl;
-    }
-    userData->requestEnded = true;
+#define UNUSED(x) (void)(x)
+#define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
+
+void error_callback(int error, const char* description)
+{
+  UNUSED(error);
+
+  fprintf(stderr, "Error: %s\n", description);
 }
 
-WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const* options) {
-    UserData userData;
-    wgpuInstanceRequestAdapter(
-        instance,
-        options,
-        onAdapterRequestEnded,
-        &userData
-    );
-    // Wait until the callback sets requestEnded to true
-    while (!userData.requestEnded) {
-        // You may want to yield or sleep a bit here in real code
-    }
-    assert(userData.adapter != nullptr && "Failed to acquire adapter");
-    return userData.adapter;
+// Utility function to request an adapter synchronously
+static void handle_request_adapter(WGPURequestAdapterStatus status,
+                                   WGPUAdapter adapter, WGPUStringView message,
+                                   void *userdata1, void *userdata2)
+{
+  UNUSED(status);
+  UNUSED(message);
+  UNUSED(userdata2);
+
+  *(WGPUAdapter *)userdata1 = adapter;
 }
 
-WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor* descriptor) {
-    struct UserData {
-        WGPUDevice device = nullptr;
-        bool requestEnded = false;
-    } userData;
+static void handle_request_device(WGPURequestDeviceStatus status,
+                                  WGPUDevice device, WGPUStringView message,
+                                  void *userdata1, void *userdata2)
+{
+  UNUSED(status);
+  UNUSED(message);
+  UNUSED(userdata2);
 
-    auto onDeviceRequestEnded = [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* pUserData) {
-        UserData* userData = reinterpret_cast<UserData*>(pUserData);
-        if (status == WGPURequestDeviceStatus_Success) {
-            userData->device = device;
-        } else {
-            std::cout << "Could not get WebGPU device: " << message << std::endl;
-        }
-        userData->requestEnded = true;
-    };
-
-    wgpuAdapterRequestDevice(adapter, descriptor, onDeviceRequestEnded, &userData);
-
-    while (!userData.requestEnded) {
-        // Optionally sleep/yield here
-    }
-    assert(userData.device != nullptr && "Failed to acquire device");
-    return userData.device;
+  *(WGPUDevice *)userdata1 = device;
 }
 
-void onDeviceError(WGPUErrorType type, const char* message, void*) {
-    std::cerr << "Device error: " << message << std::endl;
+void onDeviceError(WGPUErrorType type, const char* message, void*) 
+{
+  UNUSED(type);
+
+  std::cerr << "Device error: " << message << std::endl;
 }
 
 void gen_shader()
@@ -115,11 +100,6 @@ void gen_shader()
   f.open("shaders/vector_add.wgsl");
   f << code;
   f.close();
-  
-  // IComponentType* program = nullptr;
-  // compileRequest->getProgram(&program);
-
-  // ProgramLayout* programLayout = program->getLayout();
 }
 
 void execute_shader()
@@ -137,26 +117,32 @@ void execute_shader()
 
   std::cout << "WGPU instance: " << instance << std::endl;
 
+  WGPUAdapter adapter;
   WGPURequestAdapterOptions adapterOpts = {};
   adapterOpts.nextInChain = nullptr;
 
-  WGPUAdapter adapter = requestAdapterSync(instance, &adapterOpts);
+  const WGPURequestAdapterCallbackInfo adapterCallbackInfo = {
+    .callback = handle_request_adapter,
+    .userdata1 = &adapter
+  };
+
+  wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
   std::cout << "WGPU adapter: " << adapter << std::endl;
 
-  //  Create device
-  WGPUDeviceDescriptor deviceDesc = {};
-  deviceDesc.nextInChain = nullptr;
-  deviceDesc.label = "Cur Device"; // Optional: for debugging
-  deviceDesc.requiredFeaturesCount = 0; // No special features
-  deviceDesc.requiredFeatures = nullptr;
-  deviceDesc.requiredLimits = nullptr;
-  deviceDesc.defaultQueue.nextInChain = nullptr;
-  deviceDesc.defaultQueue.label = "The default queue";
+  WGPUDevice device;
 
-  WGPUDevice device = requestDeviceSync(adapter, &deviceDesc);
+  const WGPURequestDeviceCallbackInfo deviceCallbackInfo = {
+    .callback = handle_request_device,
+    .userdata1 = &device
+  };
+
+  wgpuAdapterRequestDevice(adapter, NULL, deviceCallbackInfo);
   std::cout << "WGPU device: " << device << std::endl;
 
-  wgpuDeviceSetUncapturedErrorCallback(device, onDeviceError, nullptr);
+  WGPUQueue queue = wgpuDeviceGetQueue(device);
+  std::cout << "WGPU queue: " << queue << std::endl;
+
+  wgpuAdapterRelease(adapter);
 
   //  Prepare data
   const size_t N = 1024;
@@ -165,7 +151,7 @@ void execute_shader()
   for (int i = 0; i < N; i++)
   {
     a[i] = 2;
-    b[i] = i;
+    b[i] = 3 * i;
   }
 
   WGPUBufferDescriptor bufDesc = {};
@@ -179,19 +165,27 @@ void execute_shader()
   wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), aBuffer, 0, a.data(), bufDesc.size);
   wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), bBuffer, 0, b.data(), bufDesc.size);
 
-  //  Create shade module
-  auto shaderSrc = readFile("shaders/vector_add.wgsl");
-  WGPUShaderModuleWGSLDescriptor wgslDesc = {};
-  wgslDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-  wgslDesc.code = shaderSrc.c_str();
-  WGPUShaderModuleDescriptor shaderDesc = {};
-  shaderDesc.nextInChain = &wgslDesc.chain;
-  WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
+  //  Load the shader module
+  std::string shader_code = readFile("shaders/vector_add.wgsl");
+
+  const WGPUChainedStruct tmp1 = { .sType = WGPUSType_ShaderSourceWGSL };
+  
+  const WGPUShaderSourceWGSL tmp2 = {
+    .chain = tmp1,
+    .code = {shader_code.c_str(), WGPU_STRLEN},
+  };
+
+  const WGPUShaderModuleDescriptor tmp3 = {
+    .nextInChain = (const WGPUChainedStruct *)&tmp2,
+    .label = {"Rasterization shader module", WGPU_STRLEN}
+  };
+
+  WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(device, &tmp3);
 
   // 5. Create compute pipeline
   WGPUComputePipelineDescriptor pipelineDesc = {};
-  pipelineDesc.compute.module = shaderModule;
-  pipelineDesc.compute.entryPoint = "computeMain";
+  pipelineDesc.compute.module = shader_module;
+  pipelineDesc.compute.entryPoint = {"computeMain", WGPU_STRLEN};
   WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &pipelineDesc);
 
   // 6. Create bind group layout and bind group
@@ -220,6 +214,8 @@ void execute_shader()
   WGPUBufferDescriptor readDesc = {};
   readDesc.size = bufDesc.size;
   readDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+  readDesc.mappedAtCreation = false;
+
   WGPUBuffer readBuffer = wgpuDeviceCreateBuffer(device, &readDesc);
   wgpuCommandEncoderCopyBufferToBuffer(encoder, resultBuffer, 0, readBuffer, 0, bufDesc.size);
 
@@ -228,25 +224,16 @@ void execute_shader()
   wgpuQueueSubmit(wgpuDeviceGetQueue(device), 1, &cmd);
 
   // 10. Map and read back result
-  struct Context {
-    bool ready;
-    WGPUBuffer buffer;
+  struct CallbackData { uint8_t done; } cb = {0};
+  auto map_callback = [](WGPUMapAsyncStatus status, WGPUStringView message, void *userdata1, void *userdata2) {
+    ((struct CallbackData*)userdata1)->done = 1;
   };
-  struct MapContext { bool done = false; WGPUBuffer buffer; };
-  Context context = { false, readBuffer };
+  WGPUBufferMapCallbackInfo map_callback_info;
+  map_callback_info.callback = map_callback;
+  map_callback_info.userdata1 = &cb;
 
-  auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void* pUserData) {
-    Context* context = reinterpret_cast<Context*>(pUserData);
-    context->ready = true;
-    std::cout << "Result buffer mapped with status " << status << std::endl;
-    if (status != WGPUBufferMapAsyncStatus_Success) return;
-  };
-
-  wgpuBufferMapAsync(readBuffer, WGPUMapMode_Read, 0, bufDesc.size, onBuffer2Mapped, (void*)&context);
-
-  while (!context.ready) {
-    wgpuDevicePoll(device, false, nullptr);
-  }
+  wgpuBufferMapAsync(readBuffer, WGPUMapMode_Read, 0, readDesc.size, map_callback_info);
+  while (!cb.done) { wgpuDevicePoll(device, false, nullptr); }
 
   const float* mapped = static_cast<const float*>(wgpuBufferGetMappedRange(readBuffer, 0, bufDesc.size));
   std::memcpy(result.data(), mapped, bufDesc.size);
@@ -256,6 +243,14 @@ void execute_shader()
   std::cout << "First 10 elements: ";
   for (size_t i = 0; i < 10; ++i) std::cout << result[i] << " ";
   std::cout << std::endl;
+
+  wgpuBufferRelease(aBuffer);
+  wgpuBufferRelease(bBuffer);
+  wgpuBufferRelease(resultBuffer);
+
+  wgpuQueueRelease(queue);
+  wgpuDeviceRelease(device);
+  wgpuInstanceRelease(instance);
 }
 
 int main()

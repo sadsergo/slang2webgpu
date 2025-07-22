@@ -38,50 +38,21 @@ include_directories(external/slang/include)
 include_directories(${CMAKE_SOURCE_DIR}/external/LiteMath)
 
 set(CPP_FILES
-    main.cpp 
-    App/app.cpp
-    Render/render.cpp
-    external/LiteMath/Image2d.cpp
+    examples/example.cpp
 )
-
-set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/imgui")
-set(IMGUI_SOURCES 
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_wgpu.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-)
-
-add_library(ImGui STATIC ${IMGUI_SOURCES})
-target_include_directories(ImGui PUBLIC ${IMGUI_DIR})
-target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
-
-include_directories(App/ Image/ Render/)
 
 if (WIN32)
     if (MSVC)
         add_compile_options(/W4)
-        endif()
+    endif()
 
-        set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
-
-        #   Set GLFW paths
-        set(GLFW_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/glfw/include)
-        set(GLFW_LIBRARY_DIR ${CMAKE_SOURCE_DIR}/external/glfw/lib-vc2022)
-
-        #   Include GlFW headers
-        include_directories(${GLFW_INCLUDE_DIR})
-else()
-    find_package(glfw3 REQUIRED)
+    set(OS_LIBRARIES d3dcompiler ws2_32 userenv bcrypt ntdll opengl32 Propsys RuntimeObject)
 endif()
 
 add_executable(app ${CPP_FILES})
 
 if (WIN32)
-target_link_libraries(app PRIVATE ${OS_LIBRARIES} ${GLFW_LIBRARY_DIR}/glfw3.lib ${CMAKE_SOURCE_DIR}/external/webgpu_native/lib/wgpu_native.lib slang::slang ImGui)
+target_link_libraries(app PRIVATE ${OS_LIBRARIES} ${CMAKE_SOURCE_DIR}/external/webgpu_native/lib/wgpu_native.lib slang::slang)
 else()
-target_link_libraries(app PRIVATE wgpu_native slang::slang glfw ImGui)
+target_link_libraries(app PRIVATE wgpu_native slang::slang)
 endif()

@@ -13,7 +13,7 @@ Clone this repo with all its submodules:
   * sudo apt-get install -y libglfw3 libglfw3-dev
   * install Slang binaries: https://github.com/shader-slang/slang/releases/tag/v2025.10.2
   * install WebGPU Native binaries: https://github.com/gfx-rs/wgpu-native/releases/tag/v25.0.2.1
-  * Move binaries into external folder as external/slang/files
+  * Move binaries into external folder as external/slang/files, external/webgpu_native/include/... and external/webgpu_native/lib/...
 
 ### Linux and Windows
 
