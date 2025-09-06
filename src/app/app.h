@@ -27,6 +27,7 @@
 
 #include "render.h"
 #include "mesh.h"
+#include "utils.h"
 
 constexpr uint32_t APP_WIDTH = 1024;
 constexpr uint32_t APP_HEIGHT = 1024;
@@ -87,6 +88,8 @@ void terminateImGui();
 //  Terminate buffers
 void terminateBuffers();
 
+void update_uniform_buffer();
+
 // private:
 public:
 GLFWwindow* window;
@@ -103,8 +106,11 @@ WGPUBuffer vertex_buffer;
 WGPUBuffer index_buffer;
 WGPUBuffer uniform_buffer;
 
+Uniforms uniforms;
+
 std::shared_ptr<RenderAPI> render_api;
 
 std::vector<Mesh> host_meshes;
+
 };
 };

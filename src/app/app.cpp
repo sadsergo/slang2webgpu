@@ -5,7 +5,7 @@
 
 #include <LiteMath.h>
 
-using LiteMath::float3, LiteMath::float2, LiteMath::float4x4;
+using LiteMath::float3, LiteMath::float2, LiteMath::float4x4, LiteMath::M_PI;
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -21,6 +21,27 @@ using LiteMath::float3, LiteMath::float2, LiteMath::float4x4;
 
 // Have the compiler check byte alignment
 static_assert(sizeof(Uniforms) % 16 == 0);
+
+// Camera parameters
+float cameraPosX = 0.0f, cameraPosY = 0.0f, cameraPosZ = 3.0f;
+float cameraFrontX = 0.0f, cameraFrontY = 0.0f, cameraFrontZ = -1.0f;
+float cameraUpX = 0.0f, cameraUpY = 1.0f, cameraUpZ = 0.0f;
+
+// Euler angles
+float yaw = -90.0f;   // initialized to face towards negative z
+float pitch = 0.0f;
+
+float lastX = APP_WIDTH / 2.0f;
+float lastY = APP_HEIGHT / 2.0f;
+int firstMouse = 1;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+float speed = 2.5f;        // movement speed
+float sensitivity = 0.1f;  // mouse sensitivity
+
+bool use_camera_movement = false;
 
 namespace WGPU
 {
@@ -61,6 +82,48 @@ void onDeviceError(WGPUErrorType type, const char* message, void*)
   std::cerr << "Device error: " << message << std::endl;
 }
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) 
+{
+  if (!use_camera_movement)
+  {
+    return;
+  }
+
+  if (firstMouse) 
+  {
+    lastX = xpos;
+    lastY = ypos;
+    firstMouse = 0;
+  }
+
+  float xoffset = xpos - lastX;
+  float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+  lastX = xpos;
+  lastY = ypos;
+
+  xoffset *= sensitivity;
+  yoffset *= sensitivity;
+
+  yaw += xoffset;
+  pitch += yoffset;
+
+  if (pitch > 89.0f)
+    pitch = 89.0f;
+  if (pitch < -89.0f)
+    pitch = -89.0f;
+
+  // Calculate new front vector
+  float frontX = cosf(yaw * M_PI / 180.0f) * cosf(pitch * M_PI / 180.0f);
+  float frontY = sinf(pitch * M_PI / 180.0f);
+  float frontZ = sinf(yaw * M_PI / 180.0f) * cosf(pitch * M_PI / 180.0f);
+
+  // Normalize front
+  float length = sqrtf(frontX * frontX + frontY * frontY + frontZ * frontZ);
+  cameraFrontX = frontX / length;
+  cameraFrontY = frontY / length;
+  cameraFrontZ = frontZ / length;
+}
+
 bool Application::Initialize()
 {
   if (!glfwInit())
@@ -80,6 +143,9 @@ bool Application::Initialize()
     glfwTerminate();
     return false;
   }
+
+  // Set mouse movement callback
+  glfwSetCursorPosCallback(window, mouse_callback);
 
   WGPUInstanceDescriptor desc = {};
   desc.nextInChain = nullptr;
@@ -315,14 +381,6 @@ WGPUTextureView Application::getNextSurfaceViewData()
   return targetView;
 }
 
-void Application::userInput()
-{
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-  {
-    glfwSetWindowShouldClose(window, true);
-  }
-}
-
 void Application::initImGui()
 {
   // Setup Dear ImGui context
@@ -402,10 +460,74 @@ void Application::copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder)
   wgpuCommandEncoderCopyBufferToTexture(encoder, &source, &dest, &textureSize);
 }
 
+void Application::userInput()
+{
+  float currentSpeed = speed * deltaTime;
+
+  // Calculate right vector via cross product of front and up
+  // right = normalize(cross(front, up))
+  float rightX = cameraFrontZ * cameraUpY - cameraFrontY * cameraUpZ;
+  float rightY = cameraFrontX * cameraUpZ - cameraFrontZ * cameraUpX;
+  float rightZ = cameraFrontY * cameraUpX - cameraFrontX * cameraUpY;
+  float rightLen = sqrtf(rightX * rightX + rightY * rightY + rightZ * rightZ);
+  rightX /= rightLen;
+  rightY /= rightLen;
+  rightZ /= rightLen;
+
+  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+  {
+    glfwSetWindowShouldClose(window, true);
+  }
+  
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS && !use_camera_movement)
+  {
+    use_camera_movement = true;
+
+    // Set input mode to capture mouse cursor (disable and hide)
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  }
+  else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS && use_camera_movement)
+  {
+    use_camera_movement = false;
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  }
+  
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS && use_camera_movement) 
+  {
+    cameraPosX += cameraFrontX * currentSpeed;
+    cameraPosY += cameraFrontY * currentSpeed;
+    cameraPosZ += cameraFrontZ * currentSpeed;
+  }
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS && use_camera_movement) 
+  {
+    cameraPosX -= cameraFrontX * currentSpeed;
+    cameraPosY -= cameraFrontY * currentSpeed;
+    cameraPosZ -= cameraFrontZ * currentSpeed;
+  }
+  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS && use_camera_movement) 
+  {
+    cameraPosX += rightX * currentSpeed;
+    cameraPosY += rightY * currentSpeed;
+    cameraPosZ += rightZ * currentSpeed;
+  }
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS && use_camera_movement) 
+  {
+    cameraPosX -= rightX * currentSpeed;
+    cameraPosY -= rightY * currentSpeed;
+    cameraPosZ -= rightZ * currentSpeed;
+  }
+
+  update_uniform_buffer();
+}
+
 void Application::mainLoop()
 {
+  float currentFrame = glfwGetTime();
+  deltaTime = currentFrame - lastFrame;
+  lastFrame = currentFrame;
+
   //  Process all pending events
-  glfwPollEvents();
   userInput();
 
   WGPUTextureView targetView = getNextSurfaceViewData();
@@ -464,6 +586,8 @@ void Application::mainLoop()
 
   wgpuSurfacePresent(surface);
   wgpuDevicePoll(*device, false, nullptr);
+
+  glfwPollEvents();
 }
 
 void Application::terminateBuffers()
@@ -556,6 +680,15 @@ void Application::load_scene_on_GPU()
   index_desc.mappedAtCreation = false; 
 
   utils::load_data_to_buffer(&index_buffer, static_cast<void*>(host_meshes[0].indices.data()), index_desc, *device);
+  
+  Uniforms obj;
+  float3 pos = float3(cameraPosX, cameraPosY, cameraPosZ);
+  float3 target = pos + float3(cameraFrontX, cameraFrontY, cameraFrontZ);
+
+  obj.projMtrx = LiteMath::perspectiveMatrix(60, (float)APP_WIDTH / (float)APP_HEIGHT, 0.1, 100.f);
+  obj.viewMtrx = LiteMath::lookAt(pos, target, float3(0, 1, 0));
+  obj.modelMtrx = float4x4{};
+  obj.color = float4(1, 1, 1, 1);
 
   WGPUBufferDescriptor uniforms_desc {};
   uniforms_desc.label = WEBGPU_STR("Uniform Buffer");
@@ -563,13 +696,22 @@ void Application::load_scene_on_GPU()
   uniforms_desc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
   uniforms_desc.mappedAtCreation = false; 
 
-  Uniforms uniforms {};
-  uniforms.projMtrx = LiteMath::perspectiveMatrix(60, (float)APP_WIDTH / (float)APP_HEIGHT, 0.1, 100.f);
-  uniforms.viewMtrx = LiteMath::lookAt(float3(1, 10, 1), float3(-5, -4, 4), float3(0, 1, 0));
-  uniforms.color = float4(1, 1, 1, 1);
-  
+  uniforms = obj;
+
   uniform_buffer = wgpuDeviceCreateBuffer(*device, &uniforms_desc);
   wgpuQueueWriteBuffer(wgpuDeviceGetQueue(*device), uniform_buffer, 0, &uniforms, uniforms_desc.size);
+}
+
+void Application::update_uniform_buffer()
+{
+  float3 pos = float3(cameraPosX, cameraPosY, cameraPosZ);
+  float3 target = pos + float3(cameraFrontX, cameraFrontY, cameraFrontZ);
+  
+  Uniforms obj = uniforms;
+  obj.viewMtrx = LiteMath::lookAt(pos, target, float3(0, 1, 0));
+  
+  uniforms = obj;
+  wgpuQueueWriteBuffer(wgpuDeviceGetQueue(*device), uniform_buffer, 0, &uniforms, wgpuBufferGetSize(uniform_buffer));
 }
 
 };

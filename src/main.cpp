@@ -22,7 +22,7 @@ int main()
     return 1;
   }
 
-  app.load_scene("c:\\Users\\nikit\\Desktop\\meshes\\Cases\\Case1_2\\Case1_2.obj");
+  app.load_scene("data\\pyramid.obj");
   app.load_scene_on_GPU();
 
   app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(APP_WIDTH, APP_HEIGHT);

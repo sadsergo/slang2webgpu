@@ -3,6 +3,10 @@
 #include <webgpu/webgpu.h>
 #include <webgpu/wgpu.h>
 
+#include <LiteMath.h>
+
+using LiteMath::float3;
+
 namespace utils
 {
 
@@ -16,5 +20,6 @@ typedef struct create_depth_stencil_state_desc_t
 void load_data_to_buffer(WGPUBuffer *buffer, void *data, const WGPUBufferDescriptor &buffer_desc, WGPUDevice device);
 WGPUBlendState wgpu_create_blend_state(bool enable_blend);
 void set_default_depth_stencil_state(WGPUDepthStencilState &depthStencilState);
+
 
 };
