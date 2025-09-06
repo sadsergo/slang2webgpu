@@ -20,3 +20,5 @@ Clone this repo with all its submodules:
   * cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
   * cmake --build build -j16
 ## Examples
+### Pyramid
+![Logo](data/resources/example1.jpg)
