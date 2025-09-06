@@ -22,10 +22,11 @@ int main()
     return 1;
   }
 
-  app.loadScene("c:/Users/nikit/Desktop/meshes/bulldozer.obj");
+  app.load_scene("c:\\Users\\nikit\\Desktop\\meshes\\Cases\\Case1_2\\Case1_2.obj");
+  app.load_scene_on_GPU();
 
   app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(APP_WIDTH, APP_HEIGHT);
-  app.render_api->Init(app.device, app.queue, app.output_buffer);
+  app.render_api->Init(app.device, app.queue, app.host_meshes[0].indices.size(), app.output_buffer, app.vertex_buffer, app.index_buffer, app.uniform_buffer);
 
   while (app.IsRunning())
   {

@@ -1,4 +1,11 @@
+#include <cassert>
+
 #include "app.h"
+#include "utils.h"
+
+#include <LiteMath.h>
+
+using LiteMath::float3, LiteMath::float2, LiteMath::float4x4;
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -11,6 +18,9 @@
 
 #define UNUSED(x) (void)(x)
 #define WEBGPU_STR(str) WGPUStringView{ str, sizeof(str) - 1 }
+
+// Have the compiler check byte alignment
+static_assert(sizeof(Uniforms) % 16 == 0);
 
 namespace WGPU
 {
@@ -132,6 +142,11 @@ bool Application::Initialize()
     .userdata1 = &adapter
   };
 
+  // //  Get supported limits
+  // WGPULimits supportedLimits;
+  // wgpuAdapterGetLimits(adapter, &supportedLimits);
+  // WGPURequir
+
   device = std::make_shared<WGPUDevice>();
 
   const WGPURequestDeviceCallbackInfo deviceCallbackInfo = {
@@ -186,7 +201,7 @@ void Application::initFrameBuffers()
   textureBufferDesc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst;
   textureBufferDesc.label = WEBGPU_STR("frame texture buffer");
 
-  output_buffer = std::make_shared<WGPUBuffer>(wgpuDeviceCreateBuffer(*device, &textureBufferDesc));
+  output_buffer = wgpuDeviceCreateBuffer(*device, &textureBufferDesc);
   
   //  Create texture
   WGPUExtent3D textureSize = {(uint32_t)width, (uint32_t)height, 1};
@@ -378,7 +393,7 @@ void Application::copyOutBuffer2FrameTexture(WGPUCommandEncoder encoder)
   dest.mipLevel = 0;
 
   WGPUTexelCopyBufferInfo source{};
-  source.buffer = *output_buffer;
+  source.buffer = output_buffer;
   source.layout.bytesPerRow = bytesPerRow;
   source.layout.offset = 0;
   source.layout.rowsPerImage = APP_HEIGHT;
@@ -453,7 +468,9 @@ void Application::mainLoop()
 
 void Application::terminateBuffers()
 {
-  wgpuBufferRelease(*output_buffer);
+  wgpuBufferRelease(output_buffer);
+  wgpuBufferRelease(vertex_buffer);
+  wgpuBufferRelease(index_buffer);
   wgpuTextureViewRelease(frame_texture_view);
   wgpuTextureRelease(frame_texture);
 }
@@ -478,17 +495,7 @@ void Application::Terminate()
   glfwTerminate();
 }
 
-void Application::createVertexBuffer()
-{
-
-}
-
-void Application::createIndexBuffer()
-{
-
-}
-
-void Application::loadScene(const std::string& path)
+void Application::load_scene(const std::string& path)
 {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -506,6 +513,63 @@ void Application::loadScene(const std::string& path)
   {
     std::cerr << "ERR: " << err << std::endl;
   }
+
+  for (int i = 0; i < shapes.size(); i++)
+  {
+    tinyobj::shape_t &shape = shapes[i];
+    tinyobj::mesh_t &mesh = shape.mesh;
+
+    host_meshes.emplace_back();
+
+    for (int j = 0; j < mesh.indices.size(); j++)
+    {
+      tinyobj::index_t k = mesh.indices[j];
+      float3 pos = { attrib.vertices[k.vertex_index * 3], -attrib.vertices[k.vertex_index * 3 + 2], attrib.vertices[k.vertex_index * 3 + 1] };
+      float3 normal = { attrib.normals[k.normal_index * 3], -attrib.normals[k.normal_index * 3 + 2], attrib.normals[k.normal_index * 3 + 1] };
+      float2 texCoord = { attrib.texcoords[k.texcoord_index  * 2], 1.0f - attrib.texcoords[k.texcoord_index  * 2 + 1] };
+      float3 color = { 1, 1, 1 };
+      
+      Vertex vert { pos, normal, color, texCoord };
+
+      host_meshes.back().vertices.push_back(vert);
+      host_meshes.back().indices.push_back(host_meshes.back().indices.size());
+    }
+
+    printf("Mesh_%d was loaded, vertices: %lu, indices: %lu\n", i, host_meshes.back().vertices.size(), host_meshes.back().indices.size());
+  }
+}
+
+void Application::load_scene_on_GPU()
+{
+  WGPUBufferDescriptor vertex_desc {};
+  vertex_desc.label = WEBGPU_STR("Vertex Buffer");
+  vertex_desc.size = sizeof(Vertex) * host_meshes[0].vertices.size();
+  vertex_desc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+  vertex_desc.mappedAtCreation = false; 
+
+  utils::load_data_to_buffer(&vertex_buffer, static_cast<void*>(host_meshes[0].vertices.data()), vertex_desc, *device);
+
+  WGPUBufferDescriptor index_desc {};
+  index_desc.label = WEBGPU_STR("Index Buffer");
+  index_desc.size = sizeof(uint32_t) * host_meshes[0].indices.size();
+  index_desc.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+  index_desc.mappedAtCreation = false; 
+
+  utils::load_data_to_buffer(&index_buffer, static_cast<void*>(host_meshes[0].indices.data()), index_desc, *device);
+
+  WGPUBufferDescriptor uniforms_desc {};
+  uniforms_desc.label = WEBGPU_STR("Uniform Buffer");
+  uniforms_desc.size = sizeof(Uniforms);
+  uniforms_desc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+  uniforms_desc.mappedAtCreation = false; 
+
+  Uniforms uniforms {};
+  uniforms.projMtrx = LiteMath::perspectiveMatrix(60, (float)APP_WIDTH / (float)APP_HEIGHT, 0.1, 100.f);
+  uniforms.viewMtrx = LiteMath::lookAt(float3(1, 10, 1), float3(-5, -4, 4), float3(0, 1, 0));
+  uniforms.color = float4(1, 1, 1, 1);
+  
+  uniform_buffer = wgpuDeviceCreateBuffer(*device, &uniforms_desc);
+  wgpuQueueWriteBuffer(wgpuDeviceGetQueue(*device), uniform_buffer, 0, &uniforms, uniforms_desc.size);
 }
 
 };

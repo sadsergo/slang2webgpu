@@ -38,9 +38,10 @@ include_directories(external/slang/include)
 include_directories(${CMAKE_SOURCE_DIR}/external/LiteMath)
 
 set(CPP_FILES
-    main.cpp 
-    App/app.cpp
-    Render/render.cpp
+    src/main.cpp 
+    src/app/app.cpp
+    src/render/render.cpp
+    src/utils/utils.cpp
     external/LiteMath/Image2d.cpp
 )
 
@@ -59,7 +60,7 @@ add_library(ImGui STATIC ${IMGUI_SOURCES})
 target_include_directories(ImGui PUBLIC ${IMGUI_DIR})
 target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
 
-include_directories(App/ Image/ Render/)
+include_directories(src/app/ src/image/ src/render/ src/utils/)
 
 if (WIN32)
     if (MSVC)

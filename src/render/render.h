@@ -20,7 +20,7 @@ public:
   RenderAPI(const uint32_t RENDER_WIDTH, const uint32_t RENDER_HEIGHT) : WIDTH(RENDER_WIDTH), HEIGHT(RENDER_HEIGHT) {}
 
   virtual void Draw() const = 0;
-  virtual void Init(std::shared_ptr<WGPUDevice> device, std::shared_ptr<WGPUQueue> queue, std::shared_ptr<WGPUBuffer> output_buffer) = 0; 
+  virtual void Init(std::shared_ptr<WGPUDevice> device, std::shared_ptr<WGPUQueue> queue, const int indices_count, WGPUBuffer output_buffer, WGPUBuffer vertex_buffer, WGPUBuffer index_buffer, WGPUBuffer uniform_buffer) = 0; 
   virtual void Terminate() = 0;
 
 protected:
@@ -36,18 +36,24 @@ public:
   RasterizationRenderAPI(const uint32_t RENDER_WIDTH, const uint32_t RENDER_HEIGHT) : RenderAPI(RENDER_WIDTH, RENDER_HEIGHT) {}
   
   void Draw() const override;
-  void Init(std::shared_ptr<WGPUDevice> device, std::shared_ptr<WGPUQueue> queue, std::shared_ptr<WGPUBuffer> output_buffer) override;
+  void Init(std::shared_ptr<WGPUDevice> device, std::shared_ptr<WGPUQueue> queue, const int indices_count, WGPUBuffer output_buffer, WGPUBuffer vertex_buffer, WGPUBuffer index_buffer, WGPUBuffer uniform_buffer) override;
   // void SetScene(const std::vector<SimpleMesh>& meshes);
   void Terminate() override;
 public:
 
 private:
   WGPURenderPipeline pipeline;
-  std::shared_ptr<WGPUBuffer> output_buffer;
   WGPUTexture frame_texture;
   WGPUTextureView frame_texture_view;
+  WGPUTextureView depth_texture_view;
+  WGPUBindGroup bind_group;
 
-  // std::vector<SimpleMesh> meshes;
+  WGPUBuffer output_buffer;
+  WGPUBuffer vertex_buffer;
+  WGPUBuffer index_buffer;
+  WGPUBuffer uniform_buffer;
+
+  int indices_count;
 };
 
 };

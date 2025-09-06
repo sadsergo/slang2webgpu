@@ -26,6 +26,7 @@
 #include <backends/imgui_impl_glfw.h>
 
 #include "render.h"
+#include "mesh.h"
 
 constexpr uint32_t APP_WIDTH = 1024;
 constexpr uint32_t APP_HEIGHT = 1024;
@@ -55,13 +56,8 @@ public:
   bool loadImage(const std::string& path, uint8_t** data, int &width, int &height, int &channels);
 
   //  Load scene
-  void loadScene(const std::string& path);
-
-  //  Create vertex buffer
-  void createVertexBuffer();
-
-  //  Create index buffer
-  void createIndexBuffer();
+  void load_scene(const std::string& path);
+  void load_scene_on_GPU();
 
   //  Process every interacted added event
   void userInput();
@@ -101,9 +97,14 @@ std::shared_ptr<WGPUDevice> device;
 std::shared_ptr<WGPUQueue> queue;
 WGPUTexture frame_texture;
 WGPUTextureView frame_texture_view;
-std::shared_ptr<WGPUBuffer> output_buffer;
+
+WGPUBuffer output_buffer;
+WGPUBuffer vertex_buffer;
+WGPUBuffer index_buffer;
+WGPUBuffer uniform_buffer;
 
 std::shared_ptr<RenderAPI> render_api;
-// std::vector<SimpleMesh> meshes;
+
+std::vector<Mesh> host_meshes;
 };
 };
