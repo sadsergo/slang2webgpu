@@ -29,8 +29,8 @@
 #include "mesh.h"
 #include "utils.h"
 
-constexpr uint32_t APP_WIDTH = 1024;
-constexpr uint32_t APP_HEIGHT = 1024;
+constexpr uint32_t APP_WIDTH = 512;
+constexpr uint32_t APP_HEIGHT = 512;
 
 namespace WGPU
 {

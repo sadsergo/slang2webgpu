@@ -22,7 +22,7 @@ int main()
     return 1;
   }
 
-  app.load_scene("data\\pyramid.obj");
+  app.load_scene("data\\models\\pyramid.obj");
   app.load_scene_on_GPU();
 
   app.render_api = std::make_shared<WGPU::RasterizationRenderAPI>(APP_WIDTH, APP_HEIGHT);
