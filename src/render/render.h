@@ -43,9 +43,13 @@ public:
 
 private:
   WGPURenderPipeline pipeline;
+  
   WGPUTexture frame_texture;
   WGPUTextureView frame_texture_view;
   WGPUTextureView depth_texture_view;
+  WGPUTexture multisample_texture;
+  WGPUTextureView multisample_texture_view;
+  
   WGPUBindGroup bind_group;
 
   WGPUBuffer output_buffer;

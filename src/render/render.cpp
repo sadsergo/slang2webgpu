@@ -18,10 +18,11 @@ namespace WGPU
     WGPUCommandEncoder command_encoder = wgpuDeviceCreateCommandEncoder(*device, &command_encoder_desc);
 
     WGPURenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view = frame_texture_view;
+    renderPassColorAttachment.view = multisample_texture_view;
     renderPassColorAttachment.resolveTarget = nullptr;
     renderPassColorAttachment.loadOp = WGPULoadOp_Clear;
     renderPassColorAttachment.storeOp = WGPUStoreOp_Store;
+    renderPassColorAttachment.resolveTarget = frame_texture_view;
     renderPassColorAttachment.clearValue = WGPUColor{ 0.0, 0.0, 0.0, 0.0 };
     renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
@@ -95,6 +96,31 @@ namespace WGPU
     //  Init texture and its view
     //  Create texture
     WGPUExtent3D textureSize = {(uint32_t)WIDTH, (uint32_t)HEIGHT, 1};
+
+    WGPUTextureDescriptor multisampleTextureDesc{};
+    multisampleTextureDesc.dimension = WGPUTextureDimension_2D;
+    multisampleTextureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+    multisampleTextureDesc.size = textureSize;
+    multisampleTextureDesc.sampleCount = 4;
+    multisampleTextureDesc.viewFormatCount = 0;
+    multisampleTextureDesc.viewFormats = nullptr;
+    multisampleTextureDesc.mipLevelCount = 1;
+    multisampleTextureDesc.label = {"Rasterization multisample texture", WGPU_STRLEN};
+    multisampleTextureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
+
+    multisample_texture = wgpuDeviceCreateTexture(*device, &multisampleTextureDesc);
+
+    WGPUTextureViewDescriptor multisampleTextureViewDesc {};
+    multisampleTextureViewDesc.aspect = WGPUTextureAspect_All;
+    multisampleTextureViewDesc.baseArrayLayer = 0;
+    multisampleTextureViewDesc.arrayLayerCount = 1;
+    multisampleTextureViewDesc.dimension = WGPUTextureViewDimension_2D;
+    multisampleTextureViewDesc.format = WGPUTextureFormat_RGBA8Unorm;
+    multisampleTextureViewDesc.mipLevelCount = 1;
+    multisampleTextureViewDesc.baseMipLevel = 0;
+    multisampleTextureViewDesc.label = {"Rasterization multisample texture view", WGPU_STRLEN};
+    
+    multisample_texture_view = wgpuTextureCreateView(multisample_texture, &multisampleTextureViewDesc);
 
     WGPUTextureDescriptor textureDesc{};
     textureDesc.dimension = WGPUTextureDimension_2D;
@@ -201,20 +227,6 @@ namespace WGPU
     };
     const WGPUColorTargetState targets[] = { tmp4 };
     const WGPUFragmentState fragment_state = { .module = shader_module, .entryPoint = {"fs_main", WGPU_STRLEN}, .constantCount = 0, .constants = nullptr, .targetCount = 1, .targets = targets };
-    
-    const WGPUPrimitiveState prim_state = { .topology = WGPUPrimitiveTopology_TriangleList, .stripIndexFormat = WGPUIndexFormat_Undefined, .frontFace = WGPUFrontFace_CCW, .cullMode = WGPUCullMode_None };
-    const WGPUMultisampleState multisample_state = { .count = 1, .mask = 0xFFFFFFFF, .alphaToCoverageEnabled = false };
-
-    WGPURenderPipelineDescriptor renderPipelineDesc{};
-    renderPipelineDesc.label = {"Rasterization pipeline", WGPU_STRLEN};
-    renderPipelineDesc.layout = layout;
-    renderPipelineDesc.vertex = vertex_state;
-    renderPipelineDesc.fragment = &fragment_state;
-    renderPipelineDesc.primitive = prim_state;
-    renderPipelineDesc.multisample = multisample_state;
-    renderPipelineDesc.depthStencil = &depth_stencil_state;
-
-    pipeline = wgpuDeviceCreateRenderPipeline(*this->device, &renderPipelineDesc);
 
     // Create the depth texture
     WGPUTextureDescriptor depthTextureDesc {};
@@ -223,7 +235,7 @@ namespace WGPU
     depthTextureDesc.mipLevelCount = 1;
     depthTextureDesc.size = {WIDTH, HEIGHT, 1};
     depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
-    depthTextureDesc.sampleCount = 1;
+    depthTextureDesc.sampleCount = 4;
     depthTextureDesc.viewFormatCount = 1;
     depthTextureDesc.viewFormats = (WGPUTextureFormat*)(&depth_stencil_state.format);
 
@@ -253,6 +265,21 @@ namespace WGPU
     bindGroupDesc.entries = &binding;
     
     bind_group = wgpuDeviceCreateBindGroup(*device, &bindGroupDesc);
+
+    // MSAA
+    const WGPUPrimitiveState prim_state = { .topology = WGPUPrimitiveTopology_TriangleList, .stripIndexFormat = WGPUIndexFormat_Undefined, .frontFace = WGPUFrontFace_CCW, .cullMode = WGPUCullMode_None };
+    const WGPUMultisampleState multisample_state = { .count = 4, .mask = 0xFFFFFFFF, .alphaToCoverageEnabled = false };
+
+    WGPURenderPipelineDescriptor renderPipelineDesc{};
+    renderPipelineDesc.label = {"Rasterization pipeline", WGPU_STRLEN};
+    renderPipelineDesc.layout = layout;
+    renderPipelineDesc.vertex = vertex_state;
+    renderPipelineDesc.fragment = &fragment_state;
+    renderPipelineDesc.primitive = prim_state;
+    renderPipelineDesc.multisample = multisample_state;
+    renderPipelineDesc.depthStencil = &depth_stencil_state;
+
+    pipeline = wgpuDeviceCreateRenderPipeline(*this->device, &renderPipelineDesc);
   }
 
   void RasterizationRenderAPI::Terminate()
